@@ -11,8 +11,9 @@ namespace DiceVadersUltrawide
     public class HudSizing : MonoBehaviour
     {
         public HudSizing(IntPtr pointer) : base(pointer) { }
-        ConfigEntry<float> _hudScale;
-        ConfigEntry<float> _boardScale;
+        internal static ConfigEntry<float> _hudScale;
+        internal static ConfigEntry<float> _boardScale;
+        internal const float DefaultScale = 1.23f;
         float _nextDiscovery;
         readonly List<Transform> _targets = new();
         Transform _board;
@@ -20,9 +21,9 @@ namespace DiceVadersUltrawide
 
         void Start()
         {
-            _hudScale = Plugin.Instance.Config.Bind("Interface", "HudScale", 1f,
+            _hudScale = Plugin.Instance.Config.Bind("Interface", "HudScale", DefaultScale,
                 new ConfigDescription("Encounter panel size multiplier. F6 decreases and F7 increases both HUD and board size.", new AcceptableValueRange<float>(1f, 1.35f)));
-            _boardScale = Plugin.Instance.Config.Bind("Interface", "BoardScale", 1f,
+            _boardScale = Plugin.Instance.Config.Bind("Interface", "BoardScale", DefaultScale,
                 new ConfigDescription("Encounter board size multiplier.", new AcceptableValueRange<float>(1f, 1.35f)));
         }
 

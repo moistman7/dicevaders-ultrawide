@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 - 2026-10-19 (prerelease)
+
+- Save the chosen 123% HUD and board sizing as defaults for new configurations.
+- Add an Ultrawide Mod panel in Settings using the game's slider artwork and font.
+- Add independent sizing sliders, an enable button, and Reset to 123%. Changes save immediately.
+- F10 opens the panel while Settings is visible; F6/F7 and F8 remain available.
+- Build verified; menu layout and interaction testing pending.
+
+
 ## 0.4.1 - 2026-10-19 (prerelease)
 
 - Restore optional HUD and board sizing with F6/F7 controls.

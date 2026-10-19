@@ -39,7 +39,7 @@ Output: `bin/Release/net6.0/DiceVadersUltrawide.dll`. Building does not install 
 
 ## Validation and limitations
 
-0.4.1 preserves the original UI proportions by default and offers optional panel enlargement. It is a prerelease. It compiles against the installed BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies with zero warnings/errors. Runtime validation of this revision is pending. The original screenshots show 3440x1440 gameplay; they are not evidence that this revision fixes tutorial positioning or bottom-panel clipping. This plugin changes canvas scaling, not individual UI anchors, game artwork, camera framing, or render textures.
+0.5.0 defaults to the user-selected 123% HUD and board sizes and adds a settings panel styled with native assets. It is a prerelease. It compiles against the installed BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies with zero warnings/errors. Runtime validation of this revision is pending. The original screenshots show 3440x1440 gameplay; they are not evidence that this revision fixes tutorial positioning or bottom-panel clipping. This plugin changes canvas scaling, not individual UI anchors, game artwork, camera framing, or render textures.
 
 Before treating this as stable, check F8 restoration, tutorial placement, the bottom invasion panel, scene transitions, 16:9, 3440x1440, and resolution changes. F9 diagnostics can help investigate any remaining issues.
 
@@ -47,10 +47,16 @@ Before treating this as stable, check F8 restoration, tutorial placement, the bo
 
 Original mod and source: NorthernDale. BepInEx and Il2CppInterop belong to their respective authors. Third-party components are referenced locally and are not redistributed. No additional source redistribution license is granted by this repository; contact the author for reuse permission.
 
-## Optional UI sizing (0.4.1)
+## Optional UI sizing (0.5.0)
 
-Default HUD and board size is 100%, preserving the original height-relative proportions across the wider canvas. F7 increases both by 2 percentage points; F6 decreases both, down to 100%. Size changes are saved. The maximum is 135%. F8 disables the fix and enlargement together.
+Default HUD and board size is 123%, matching the selected gameplay appearance. F7 increases both by 2 percentage points; F6 decreases both, down to 100%. Size changes are saved. The maximum is 135%. F8 disables the fix and enlargement together.
 
 Set `Interface/HudScale` and `Interface/BoardScale` independently in the configuration (1.00 = 100%). These settings apply only above 16:9. Existing size preferences are retained on upgrades. For the original appearance set both to 1.
 
 Enlargement remains experimental. Screen-edge correction applies only to supported RectTransform holders; larger sizes can crowd panels or clip artwork. Visual placement, animation, and input still need in-game testing.
+
+## Mod menu
+
+Open the game's Settings screen, then click **ULTRAWIDE MOD** at the bottom, or press **F10** while Settings is visible. The panel uses the game's actual slider artwork and font, with separate HUD and board sliders (100–135%), an ultrawide enable button, **Reset to 123%**, and Close. Changes save immediately; no Apply action is required. Escape closes the panel (the game's own Escape handler may also exit Settings).
+
+The menu exists only while Settings is visible and does not introduce a second pause system. Existing F6/F7 and F8 shortcuts remain available. Menu pointer interactions, navigation, and visual layout require in-game testing; controller navigation is not yet verified. Native controls are cloned with fresh events, and game scripts on slider clones are disabled so they cannot change audio settings.
