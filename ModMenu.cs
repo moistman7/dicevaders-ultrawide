@@ -74,6 +74,7 @@ namespace DiceVadersUltrawide
         bool _smokeOpened;
         float _smokeCloseAt;
         bool _captureStarted;
+        bool _buttonTestDone;
 
 
 
@@ -141,6 +142,11 @@ namespace DiceVadersUltrawide
                     _smokeCloseAt = Time.unscaledTime + 2f;
                 }
                 Sync();
+                if (smoke && !_buttonTestDone && Environment.GetEnvironmentVariable("DICEVADERS_UW_BUTTON_TEST") == "1")
+                {
+                    _buttonTestDone = true;
+                    StartCoroutine(TestButtonsAfterLayout().WrapToIl2Cpp());
+                }
                 string capture = Environment.GetEnvironmentVariable("DICEVADERS_UW_MENU_CAPTURE");
                 if (smoke && !_captureStarted && !string.IsNullOrEmpty(capture) && Time.unscaledTime >= _smokeCloseAt - 1f)
                 {
@@ -155,6 +161,63 @@ namespace DiceVadersUltrawide
                     Plugin.Instance.Log.LogInfo($"Menu smoke test closed: restored timeScale={Time.timeScale}; previous EventSystems restored.");
                 }
             }
+        }
+
+        [HideFromIl2Cpp]
+        System.Collections.IEnumerator TestButtonsAfterLayout()
+        {
+            yield return null;
+            yield return null;
+            TestButtons();
+        }
+
+        void TestButtons()
+        {
+            bool enabled = Plugin.Enabled.Value;
+            float hud = HudSizing._hudScale.Value, board = HudSizing._boardScale.Value;
+            try
+            {
+                ClickTestButton("EnableFix");
+                if (Plugin.Enabled.Value == enabled) throw new InvalidOperationException("Toggle button callback did not run.");
+                HudSizing._hudScale.Value = 1.01f;
+                HudSizing._boardScale.Value = 1.02f;
+                ClickTestButton("RESET TO 123%");
+                if (Math.Abs(HudSizing._hudScale.Value - HudSizing.DefaultScale) > 0.001f ||
+                    Math.Abs(HudSizing._boardScale.Value - HudSizing.DefaultScale) > 0.001f)
+                    throw new InvalidOperationException("Reset button callback did not run.");
+                ClickTestButton("CLOSE");
+                if (_panel.activeSelf) throw new InvalidOperationException("Close button callback did not run.");
+                Plugin.Instance.Log.LogInfo("BUTTON TEST PASS: Toggle, Reset, Close are the top raycast targets and their native pointer-click callbacks work.");
+            }
+            catch (Exception error) { Plugin.Instance.Log.LogError("BUTTON TEST FAIL: " + error); }
+            finally
+            {
+                Plugin.Enabled.Value = enabled;
+                HudSizing._hudScale.Value = hud;
+                HudSizing._boardScale.Value = board;
+                if (_panel.activeSelf) SetOpen(false);
+                _smokeCloseAt = float.PositiveInfinity;
+            }
+        }
+
+        void ClickTestButton(string name)
+        {
+            Canvas.ForceUpdateCanvases();
+            foreach (var button in _panel.GetComponentsInChildren<Button>())
+            {
+                if (button.gameObject.name != name) continue;
+                var rect = button.GetComponent<RectTransform>();
+                var data = new PointerEventData(_eventRoot.GetComponent<EventSystem>());
+                data.position = RectTransformUtility.WorldToScreenPoint(null, rect.TransformPoint(rect.rect.center));
+                data.button = PointerEventData.InputButton.Left;
+                var results = new Il2CppSystem.Collections.Generic.List<RaycastResult>();
+                _eventRoot.GetComponent<EventSystem>().RaycastAll(data, results);
+                if (results.Count == 0 || results[0].gameObject.GetComponentInParent<Button>() != button)
+                    throw new InvalidOperationException($"Button is not the top raycast target: {name}; hits={results.Count}; first={(results.Count > 0 ? results[0].gameObject.name : "none")}; depth={button.GetComponent<Image>().depth}; culled={button.GetComponent<Image>().canvasRenderer.cull}");
+                button.OnPointerClick(data);
+                return;
+            }
+            throw new InvalidOperationException("Button not found: " + name);
         }
 
         [HideFromIl2Cpp]
@@ -326,7 +389,7 @@ namespace DiceVadersUltrawide
             dim.raycastTarget = true;
             var frame = new GameObject("Panel");
             Rect(frame, _panel.transform, new Vector2(900, 670), Vector2.zero);
-            var background = frame.AddComponent<MenuGraphic>();
+            var background = AddGraphic(frame);
             background.Bottom = 0.23f;
             background.Top = 0.82f;
             background.Slant = 20f;
@@ -372,17 +435,18 @@ namespace DiceVadersUltrawide
             var obj = new GameObject("SizeSlider");
             Rect(obj, parent, new Vector2(620, 50), position);
             var hit = obj.AddComponent<Image>();
-            hit.color = Color.clear;
+            hit.color = new Color(1f, 1f, 1f, 0.001f);
+            hit.canvasRenderer.cullTransparentMesh = false;
             var track = new GameObject("Track");
             Rect(track, obj.transform, new Vector2(620, 22), Vector2.zero);
-            var trackImage = track.AddComponent<MenuGraphic>();
+            var trackImage = AddGraphic(track);
 
             trackImage.color = new Color(0.18f, 0.33f, 0.39f, 1f);
             var fill = new GameObject("Fill");
             var fillRect = Rect(fill, track.transform, Vector2.zero, Vector2.zero);
             fillRect.anchorMin = Vector2.zero;
             fillRect.anchorMax = Vector2.one;
-            var fillImage = fill.AddComponent<MenuGraphic>();
+            var fillImage = AddGraphic(fill);
 
             fillImage.color = new Color(0.42f, 0.72f, 0.80f, 1f);
             var handle = new GameObject("Handle");
@@ -408,6 +472,12 @@ namespace DiceVadersUltrawide
             slider.onValueChanged.AddListener((UnityAction<float>)(value => changed(value)));
             return slider;
         }
+        static MenuGraphic AddGraphic(GameObject obj)
+        {
+            if (obj.GetComponent<CanvasRenderer>() == null) obj.AddComponent<CanvasRenderer>();
+            return obj.AddComponent<MenuGraphic>();
+        }
+
         Text Label(Transform parent, string value, Vector2 position, Vector2 size, float fontSize)
         {
             var obj = new GameObject("ModLabel");
@@ -431,12 +501,22 @@ namespace DiceVadersUltrawide
         {
             var obj = new GameObject(value.Length == 0 ? "EnableFix" : value);
             Rect(obj, parent, size, position);
-            var image = obj.AddComponent<MenuGraphic>();
+            // Use a standard Image for GraphicRaycaster registration. The custom
+            // graphic is visual-only; it must not be the button's mouse target.
+            var hit = obj.AddComponent<Image>();
+            hit.color = new Color(1f, 1f, 1f, 0.001f);
+            hit.canvasRenderer.cullTransparentMesh = false;
+            hit.raycastTarget = true;
+            var artwork = new GameObject("Artwork");
+            Rect(artwork, obj.transform, size, Vector2.zero);
+            var image = AddGraphic(artwork);
+            image.raycastTarget = false;
             image.Bottom = 0.22f;
             image.Top = 0.78f;
             image.color = new Color(0.12f, 0.34f, 0.32f, 1);
             var button = obj.AddComponent<Button>();
-            button.targetGraphic = image;
+            button.transition = Selectable.Transition.None;
+            button.targetGraphic = hit;
             button.onClick.AddListener((UnityAction)(() => clicked()));
             Label(obj.transform, value, Vector2.zero, size - new Vector2(20, 10), 28);
             return obj;

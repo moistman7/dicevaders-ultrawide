@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 - 2026-10-19 (prerelease)
+
+- Give buttons standard transparent Unity Image hit targets; custom geometry is visual-only.
+- Add CanvasRenderer explicitly for custom artwork and bypass native color-tween initialization on the injected graphic.
+- Apply the fix to the shared Settings, Pause, and hotkey panel without changing its appearance.
+- Add an opt-in runtime raycast and native pointer-click check for Toggle, Reset, and Close, restoring saved settings afterward.
+- Build verified.
+
+
 ## 0.6.0 - 2026-10-19 (prerelease)
 
 - Hook Settings OnEnable and Pause OnPause directly to prepare entries without waiting for the discovery timer.

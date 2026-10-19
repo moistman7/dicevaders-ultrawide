@@ -81,3 +81,8 @@ Mod author and maintainer: **NorthernDale / moistman7**. This is the author's ow
 BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. Dependencies are referenced locally; game assets are not redistributed.
 
 The pause and Settings controllers are discovered even while inactive. Entry visibility is checked every frame, and the overlay is prebuilt at startup, removing the previous one-second wait when opening an already-loaded pause screen.
+
+Button hit targets (0.6.1): buttons use transparent standard Unity Images for mouse hit testing; custom geometry is visual-only. This keeps the same panel appearance while restoring normal Button clicks. An additional developer check, DICEVADERS_UW_BUTTON_TEST=1 together with the menu smoke environment flag, tests top raycast targets and native pointer-click callbacks for Toggle, Reset, and Close, then restores saved settings.
+
+
+0.6.1 verification: after waiting two UI layout frames, Toggle, Reset, and Close were each the top raycast target and their native pointer-click callbacks passed. The check restores the previous enable state and HUD/board values. This tests the shared panel logic used by Settings and Pause; it does not verify styling visually.
