@@ -64,6 +64,7 @@ namespace DiceVadersUltrawide
         Font _labelFont;
         readonly MenuFonts _fonts = new();
         Font _settingsFont, _settingsTitleFont, _pauseFont;
+        int _pauseVisibleFrame = -1;
         Text _titleLabel;
         readonly Dictionary<int, int> _baseTextSizes = new();
         readonly Dictionary<int, float> _fontSizeScales = new();
@@ -143,6 +144,7 @@ namespace DiceVadersUltrawide
             bool inPause = !exitingOptions && _pause != null && _pause.IsPaused;
             _entry.SetActive(inSettings || inPause);
             PositionEntry(inSettings, inPause);
+            if (_panel.activeSelf && !inSettings && _pauseFont != null && _hudLabel.font != _pauseFont) ApplyPanelFonts();
 
             var mouse = Mouse.current;
             if (!_panel.activeSelf && _entry.activeSelf && mouse != null && mouse.leftButton.wasPressedThisFrame &&
@@ -195,6 +197,8 @@ namespace DiceVadersUltrawide
             {
                 var copy = _fonts.Copy(label);
                 if (copy != null && !copies.Contains(copy)) copies.Add(copy);
+                var pauseCopy = _fonts.CopyPause(label);
+                if (pauseCopy != null && !copies.Contains(pauseCopy)) copies.Add(pauseCopy);
             }
             yield return Resources.UnloadUnusedAssets();
             int alive = 0;
@@ -345,7 +349,12 @@ namespace DiceVadersUltrawide
                 if (_settingsTitleFont == null) _settingsTitleFont = _fonts.Find("Blockvaders");
             }
             if (pause && _pause != null && _pauseFont == null && _pause.ResumeButton != null)
-                _pauseFont = _fonts.Copy(_pause.ResumeButton.GetComponentInChildren<TextMeshProUGUI>(true));
+            {
+                var label = _pause.ResumeButton.GetComponentInChildren<TextMeshProUGUI>(true);
+                if (label == null || !label.isActiveAndEnabled) { _pauseVisibleFrame = -1; return; }
+                if (_pauseVisibleFrame < 0) _pauseVisibleFrame = Time.frameCount;
+                if (Time.frameCount > _pauseVisibleFrame) _pauseFont = _fonts.CopyPause(label);
+            }
         }
 
         void ApplyPanelFonts()

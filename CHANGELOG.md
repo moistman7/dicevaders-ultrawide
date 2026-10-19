@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.6 - 2026-10-19 (prerelease)
+
+- Separate the Pause font cache from the Options font cache.
+- Capture the pause font only after Resume is active for a frame, instead of precaching the block font during startup.
+- Give the pause-only font copy its own UI/Default material, avoiding inherited scene material state.
+- Retain the readable fallback until the pause font and texture are ready.
+- Keep the working Options font lookup, controls, hotkeys, and saved sizes.
+- Build passed; exact pause rendering still needs an in-game check.
+
+
 ## 0.6.5 - 2026-10-19 (prerelease)
 
 - Restore the block font's previously working nominal text sizes.

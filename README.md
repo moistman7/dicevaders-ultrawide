@@ -94,3 +94,5 @@ Contextual fonts (0.6.3): Pause uses an owned copy of the native Resume label's 
 Font sizing (0.6.4): native text sizes are normalized against Arial's capital-glyph height, with another 15% increase for Pause. Settings can resolve cached native font families when baked TMP assets have no source-file link, and searches visible action/body labels when ApplyButton text cannot be found. Text size normalization is cached per font.
 
 Pause font repair (0.6.5): Blockvaders labels keep their original nominal font sizes and are enlarged by their transforms (170% in Pause), bypassing glyph-height measurement requests for that font. Settings keeps its working handwritten font lookup and body sizing. Visual confirmation of the pause repair is pending.
+
+Pause font isolation (0.6.6): startup precaching is limited to the Settings handwriting family. Pause captures its own native font after Resume has been active for a frame and uses an independent UI/Default material. A readable fallback remains while the native font/texture is unavailable. The Options font cache and lookup remain separate. Pause rendering has not yet been visually confirmed.
