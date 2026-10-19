@@ -140,14 +140,6 @@ namespace DiceVadersUltrawide
             label.font = _labelFont;
 
             if (inSettings || !inPause || _pause.ResumeButton == null) return;
-            foreach (var native in _pause.ResumeButton.GetComponentsInChildren<Image>(true))
-            {
-                if (native.sprite == null) continue;
-                image.sprite = native.sprite;
-                image.type = native.type;
-                image.color = native.color;
-                break;
-            }
             var resume = _pause.ResumeButton.GetComponent<RectTransform>();
             if (resume == null) return;
             var canvas = resume.GetComponentInParent<Canvas>();
@@ -262,7 +254,7 @@ namespace DiceVadersUltrawide
             _nativeSliders = source != null;
             EnsureFont();
             var image = source != null ? source.GetComponentInChildren<Image>(true) : null;
-            _buttonSprite = image != null ? image.sprite : null;
+            _buttonSprite = image != null && image.sprite != null ? image.sprite : MenuSkin.Button;
 
             _root = new GameObject("UltrawideModMenu");
             UnityEngine.Object.DontDestroyOnLoad(_root);
@@ -297,8 +289,8 @@ namespace DiceVadersUltrawide
             var frame = new GameObject("Panel");
             Rect(frame, _panel.transform, new Vector2(900, 670), Vector2.zero);
             var background = frame.AddComponent<Image>();
-            background.sprite = _buttonSprite;
-            background.type = Image.Type.Sliced;
+            background.sprite = source != null ? _buttonSprite : MenuSkin.Panel;
+            background.type = Image.Type.Simple;
             background.color = new Color(0.12f, 0.28f, 0.30f, 1f);
             Label(frame.transform, "ULTRAWIDE MOD", new Vector2(0, 270), new Vector2(800, 70), 42);
             _enabledLabel = Button(frame.transform, "", new Vector2(0, 170), new Vector2(620, 65), () =>
@@ -361,16 +353,36 @@ namespace DiceVadersUltrawide
         {
             var obj = new GameObject("SizeSlider");
             Rect(obj, parent, new Vector2(620, 50), position);
+            var hit = obj.AddComponent<Image>();
+            hit.color = Color.clear;
             var track = new GameObject("Track");
-            Rect(track, obj.transform, new Vector2(600, 14), Vector2.zero);
+            Rect(track, obj.transform, new Vector2(620, 22), Vector2.zero);
             var trackImage = track.AddComponent<Image>();
-            trackImage.color = new Color(0.08f, 0.18f, 0.22f, 1f);
+            trackImage.sprite = MenuSkin.Bar;
+            trackImage.color = new Color(0.18f, 0.33f, 0.39f, 1f);
+            var fill = new GameObject("Fill");
+            var fillRect = Rect(fill, track.transform, Vector2.zero, Vector2.zero);
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            var fillImage = fill.AddComponent<Image>();
+            fillImage.sprite = MenuSkin.Bar;
+            fillImage.color = new Color(0.42f, 0.72f, 0.80f, 1f);
             var handle = new GameObject("Handle");
-            var handleRect = Rect(handle, track.transform, new Vector2(28, 42), Vector2.zero);
-            var handleImage = handle.AddComponent<Image>();
-            handleImage.color = new Color(0.35f, 0.9f, 0.65f, 1f);
+            var handleRect = Rect(handle, track.transform, new Vector2(20, 30), Vector2.zero);
+            Image handleImage = null;
+            for (int i = 0; i < 2; i++)
+            {
+                var slash = new GameObject("Slash");
+                var slashRect = Rect(slash, handle.transform, new Vector2(3, 29), new Vector2(i * 7 - 3, 0));
+                slashRect.localRotation = Quaternion.Euler(0, 0, -42);
+                var slashImage = slash.AddComponent<Image>();
+                slashImage.color = new Color(0.55f, 0.85f, 0.90f, 1f);
+                slashImage.raycastTarget = false;
+                if (i == 0) handleImage = slashImage;
+            }
             var slider = obj.AddComponent<Slider>();
             slider.targetGraphic = handleImage;
+            slider.fillRect = fillRect;
             slider.handleRect = handleRect;
             slider.minValue = 100;
             slider.maxValue = 135;
@@ -378,7 +390,6 @@ namespace DiceVadersUltrawide
             slider.onValueChanged.AddListener((UnityAction<float>)(value => changed(value)));
             return slider;
         }
-
         Text Label(Transform parent, string value, Vector2 position, Vector2 size, float fontSize)
         {
             var obj = new GameObject("ModLabel");
@@ -404,7 +415,7 @@ namespace DiceVadersUltrawide
             Rect(obj, parent, size, position);
             var image = obj.AddComponent<Image>();
             image.sprite = _buttonSprite;
-            image.type = Image.Type.Sliced;
+            image.type = Image.Type.Simple;
             image.color = new Color(0.18f, 0.50f, 0.43f, 1);
             var button = obj.AddComponent<Button>();
             button.targetGraphic = image;

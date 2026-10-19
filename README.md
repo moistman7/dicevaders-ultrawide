@@ -78,3 +78,5 @@ Mod author and maintainer: **NorthernDale / moistman7**. This is the author's ow
 BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. Dependencies are referenced locally; game assets are not redistributed.
 
 The pause and Settings controllers are discovered even while inactive. Entry visibility is checked every frame, and the overlay is prebuilt at startup, removing the previous one-second wait when opening an already-loaded pause screen.
+
+Pause styling (0.5.8): when native Settings assets have not loaded, the panel uses locally generated angled shapes, blue filled sliders with slash handles, and slim teal buttons. The pause entry no longer borrows green Resume artwork. Native Settings assets remain in use when available. These generated textures contain no copied game artwork.

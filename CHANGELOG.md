@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.8 - 2026-10-19 (prerelease)
+
+- Replace the plain Pause fallback with Settings-style angled panel shapes, blue filled sliders, slash handles, and slim teal buttons.
+- Remove the green Resume artwork from the pause entry.
+- Generate original fallback textures locally so the style is available before Settings loads.
+- Preserve native Settings assets, reliable owned text, saved sizes, and hotkeys.
+- Build verified; new fallback styling still needs an in-game visual check.
+
+
 ## 0.5.7 - 2026-10-19 (prerelease)
 
 - Stop borrowing scene font objects after the log confirmed a destroyed-font exception.
