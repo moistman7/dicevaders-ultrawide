@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.0 - 2026-10-19 (prerelease)
+
+- Hook Settings OnEnable and Pause OnPause directly to prepare entries without waiting for the discovery timer.
+- Prefer active/paused controllers over inactive duplicates.
+- Replace scene-dependent sprite selection with one shared geometric skin based on the preferred Settings layout.
+- Render angled backdrop, slim teal buttons, blue filled sliders, and slash handles in every context.
+- Preserve owned font, working control logic, configurable hotkeys, saved sizes, and 123% defaults.
+- Build and startup registration/text/state checks passed. Visual styling and lifecycle timing need user confirmation; hidden-window captures are black.
+
+
 ## 0.5.9 - 2026-10-19 (prerelease)
 
 - Restore sliced rendering for native button/panel images after the 0.5.8 simple-rendering regression.

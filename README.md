@@ -65,12 +65,15 @@ Output: `bin/Release/net6.0/DiceVadersUltrawide.dll`. Building does not install 
 
 ## Validation and limitations
 
-Builds against BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies with zero warnings/errors. The 0.5.7 menu uses fresh Unity UI text with its own Arial font, protected from unused-asset unloading. It never borrows a scene font. This addresses the destroyed-font error observed after scene changes, and avoids inheriting text animations, masking, or visibility state. Loaded native slider artwork is reused where available.
+0.6.0 renders one shared panel skin for Settings, Pause, and the hotkey. Its angled backdrop, slim teal buttons, blue slider fills, and slash handles are drawn as UI geometry. No native scene sprites, texture trimming, or scene-first fallback selection is involved. Text uses an owned Arial font protected from asset unloading.
 
-Opening the menu logs the HUD label's generated vertex count. For a developer startup smoke check, launch with `DICEVADERS_UW_MENU_TEST=1` in the process environment; it opens the panel after UI startup and closes it two seconds later, logging text geometry and clock restoration. This is not a visual screenshot test.
+Settings OnEnable and Pause OnPause are hooked directly to cache the opening controller and prepare the entry immediately. Visibility is checked every frame, with periodic discovery only as a fallback. Controller searches prefer the active Settings screen or paused controller over inactive duplicates.
 
-Panel placement, slider interaction, scene changes, repeated reopening, tutorial screens, and larger-size overlap still need visual/runtime verification. Bounds correction applies only to supported RectTransform holders, so larger sizes can crowd or clip artwork. Logs are in `BepInEx/LogOutput.log`.
+The build passes with zero warnings/errors against BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies. A startup runtime check confirms custom graphic registration, text geometry, and clock restoration. User feedback confirmed the previous controls work; the new appearance and open-hook timing still need an in-game check.
 
+For a developer startup smoke check, launch with `DICEVADERS_UW_MENU_TEST=1` in the process environment. It opens the panel after startup and closes it two seconds later. An optional `DICEVADERS_UW_MENU_CAPTURE` PNG path requests an end-of-frame capture. Hidden-window captures can be black and are not proof of visual correctness.
+
+Panel placement, controller navigation, transitions, and larger-size overlap still need verification. Bounds correction applies only to supported RectTransform holders. Logs are in `BepInEx/LogOutput.log`.
 ## Credits
 
 Mod author and maintainer: **NorthernDale / moistman7**. This is the author's own repository.
@@ -78,7 +81,3 @@ Mod author and maintainer: **NorthernDale / moistman7**. This is the author's ow
 BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. Dependencies are referenced locally; game assets are not redistributed.
 
 The pause and Settings controllers are discovered even while inactive. Entry visibility is checked every frame, and the overlay is prebuilt at startup, removing the previous one-second wait when opening an already-loaded pause screen.
-
-Pause styling (0.5.8): when native Settings assets have not loaded, the panel uses locally generated angled shapes, blue filled sliders with slash handles, and slim teal buttons. The pause entry no longer borrows green Resume artwork. Native Settings assets remain in use when available. These generated textures contain no copied game artwork.
-
-Image regression repair (0.5.9): native panel/button images again use sliced rendering. Asset discovery selects the effective displayed sprite, skipping empty images, and protects referenced artwork from unused-asset unloading. Generated fallback sprites preserve transparent margins with FullRect geometry. Runtime appearance is not yet visually verified.

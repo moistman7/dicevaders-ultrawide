@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using StarVaders;
-using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
@@ -11,6 +10,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using StarVaders.PauseMenu;
 using Il2CppInterop.Runtime.Attributes;
+using BepInEx.Unity.IL2CPP.Utils.Collections;
 
 namespace DiceVadersUltrawide
 {
@@ -19,13 +19,40 @@ namespace DiceVadersUltrawide
     public class ModMenu : MonoBehaviour
     {
         public ModMenu(IntPtr pointer) : base(pointer) { }
+        static ModMenu _live;
+
+        void Awake() => _live = this;
+
+        internal static void SettingsOpened(SettingsSceneController settings)
+        {
+            if (_live == null) return;
+            _live._settings = settings;
+            _live.ShowEntryNow(true);
+        }
+
+        internal static void PauseOpened(PauseMenuController pause)
+        {
+            if (_live == null) return;
+            _live._pause = pause;
+            _live.ShowEntryNow(false);
+        }
+
+        void ShowEntryNow(bool settings)
+        {
+            _nextSearch = Time.unscaledTime + 1f;
+            if (_root == null && HudSizing._hudScale != null) Build(_settings);
+            if (_entry == null) return;
+            PositionEntry(settings, !settings);
+            _entry.SetActive(true);
+            Plugin.Instance.Log.LogDebug(settings ? "Settings entry shown by OnEnable hook." : "Pause entry prepared by OnPause hook.");
+        }
         GameObject _root;
         GameObject _panel;
         SettingsSceneController _settings;
 
         Font _labelFont;
 
-        Sprite _buttonSprite;
+
         Slider _hud;
         Slider _board;
         Text _hudLabel;
@@ -33,7 +60,7 @@ namespace DiceVadersUltrawide
         Text _enabledLabel;
         float _nextSearch;
         bool _syncing;
-        bool _nativeSliders;
+
         GameObject _entry;
         readonly List<MonoBehaviour> _suspendedInput = new();
         float _previousTimeScale;
@@ -43,9 +70,10 @@ namespace DiceVadersUltrawide
         PauseMenuController _pause;
         GameObject _eventRoot;
         readonly List<EventSystem> _suspendedEvents = new();
-        bool _settingsStyle;
+
         bool _smokeOpened;
         float _smokeCloseAt;
+        bool _captureStarted;
 
 
 
@@ -67,15 +95,16 @@ namespace DiceVadersUltrawide
                 _settings = null;
                 _pause = null;
                 foreach (var pause in UnityEngine.Object.FindObjectsByType<PauseMenuController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
-                    if (pause.gameObject.scene.IsValid()) { _pause = pause; break; }
+                {
+                    if (!pause.gameObject.scene.IsValid()) continue;
+                    if (pause.IsPaused) { _pause = pause; break; }
+                    if (_pause == null) _pause = pause;
+                }
                 foreach (var settings in UnityEngine.Object.FindObjectsByType<SettingsSceneController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 {
-                    if (settings.gameObject.scene.IsValid()) { _settings = settings; break; }
-                }
-                if (_root != null && !_settingsStyle && !_panel.activeSelf && _settings != null && _settings.isActiveAndEnabled && _settings.MasterVolumeSlider != null)
-                {
-                    UnityEngine.Object.Destroy(_root);
-                    _root = null;
+                    if (!settings.gameObject.scene.IsValid()) continue;
+                    if (settings.isActiveAndEnabled) { _settings = settings; break; }
+                    if (_settings == null) _settings = settings;
                 }
                 if (_root == null && HudSizing._hudScale != null)
                 {
@@ -112,6 +141,12 @@ namespace DiceVadersUltrawide
                     _smokeCloseAt = Time.unscaledTime + 2f;
                 }
                 Sync();
+                string capture = Environment.GetEnvironmentVariable("DICEVADERS_UW_MENU_CAPTURE");
+                if (smoke && !_captureStarted && !string.IsNullOrEmpty(capture) && Time.unscaledTime >= _smokeCloseAt - 1f)
+                {
+                    _captureStarted = true;
+                    StartCoroutine(CaptureAfterRender(capture).WrapToIl2Cpp());
+                }
                 if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetOpen(false);
                 if (smoke && _smokeOpened && Time.unscaledTime >= _smokeCloseAt)
                 {
@@ -120,6 +155,23 @@ namespace DiceVadersUltrawide
                     Plugin.Instance.Log.LogInfo($"Menu smoke test closed: restored timeScale={Time.timeScale}; previous EventSystems restored.");
                 }
             }
+        }
+
+        [HideFromIl2Cpp]
+        System.Collections.IEnumerator CaptureAfterRender(string path)
+        {
+            yield return new WaitForEndOfFrame();
+            try
+            {
+                var texture = ScreenCapture.CaptureScreenshotAsTexture();
+                if (texture != null)
+                {
+                    System.IO.File.WriteAllBytes(path, ImageConversion.EncodeToPNG(texture));
+                    UnityEngine.Object.Destroy(texture);
+                    Plugin.Instance.Log.LogInfo("End-of-frame menu capture saved.");
+                }
+            }
+            catch (Exception error) { Plugin.Instance.Log.LogWarning("Menu capture unavailable: " + error.Message); }
         }
 
         void OpenFromEntry()
@@ -133,12 +185,6 @@ namespace DiceVadersUltrawide
             // Settings retains its existing placement. Pause gets its own row above
             // the Game Menu header instead of overlapping Resume and Options.
             entry.anchoredPosition = new Vector2(0, inSettings ? -470 : -230);
-            var image = _entry.GetComponent<Image>();
-            var label = _entry.GetComponentInChildren<Text>();
-            image.sprite = _buttonSprite;
-            image.color = new Color(0.18f, 0.50f, 0.43f, 1);
-            label.font = _labelFont;
-
             if (inSettings || !inPause || _pause.ResumeButton == null) return;
             var resume = _pause.ResumeButton.GetComponent<RectTransform>();
             if (resume == null) return;
@@ -158,6 +204,7 @@ namespace DiceVadersUltrawide
 
         void OnDestroy()
         {
+            if (_live == this) _live = null;
             if (_panel != null && _panel.activeSelf) SetOpen(false);
             if (_root != null) UnityEngine.Object.Destroy(_root);
             if (_labelFont != null) UnityEngine.Object.Destroy(_labelFont);
@@ -246,26 +293,7 @@ namespace DiceVadersUltrawide
 
         void Build(SettingsSceneController settings)
         {
-            _settingsStyle = settings != null;
-            Slider source = settings != null && settings.MasterVolumeSlider != null ? settings.MasterVolumeSlider.Slider : null;
-            if (source == null)
-                foreach (var option in Resources.FindObjectsOfTypeAll<OptionSlider>())
-                    if (option.Slider != null) { source = option.Slider; break; }
-            _nativeSliders = source != null;
             EnsureFont();
-            _buttonSprite = null;
-            if (source != null)
-                foreach (var image in source.GetComponentsInChildren<Image>(true))
-                {
-                    // overrideSprite is the image actually displayed by the game.
-                    var visible = image.overrideSprite;
-                    if (visible == null) continue;
-                    _buttonSprite = MenuSkin.Keep(visible);
-                    break;
-                }
-            bool nativeArt = _buttonSprite != null;
-            if (!nativeArt) _buttonSprite = MenuSkin.Button;
-
             _root = new GameObject("UltrawideModMenu");
             UnityEngine.Object.DontDestroyOnLoad(_root);
             var canvas = _root.AddComponent<Canvas>();
@@ -298,10 +326,11 @@ namespace DiceVadersUltrawide
             dim.raycastTarget = true;
             var frame = new GameObject("Panel");
             Rect(frame, _panel.transform, new Vector2(900, 670), Vector2.zero);
-            var background = frame.AddComponent<Image>();
-            background.sprite = nativeArt ? _buttonSprite : MenuSkin.Panel;
-            background.type = Image.Type.Sliced;
-            background.color = new Color(0.12f, 0.28f, 0.30f, 1f);
+            var background = frame.AddComponent<MenuGraphic>();
+            background.Bottom = 0.23f;
+            background.Top = 0.82f;
+            background.Slant = 20f;
+            background.color = new Color(0.075f, 0.18f, 0.21f, 1f);
             Label(frame.transform, "ULTRAWIDE MOD", new Vector2(0, 270), new Vector2(800, 70), 42);
             _enabledLabel = Button(frame.transform, "", new Vector2(0, 170), new Vector2(620, 65), () =>
             {
@@ -309,12 +338,12 @@ namespace DiceVadersUltrawide
                 Sync();
             }).GetComponentInChildren<Text>();
             _hudLabel = Label(frame.transform, "HUD SIZE", new Vector2(0, 90), new Vector2(760, 50), 30);
-            _hud = MakeSlider(source, frame.transform, new Vector2(0, 35), value =>
+            _hud = MakeSlider(null, frame.transform, new Vector2(0, 35), value =>
             {
                 if (!_syncing) HudSizing._hudScale.Value = Mathf.Round(value) / 100f;
             });
             _boardLabel = Label(frame.transform, "BOARD SIZE", new Vector2(0, -40), new Vector2(760, 50), 30);
-            _board = MakeSlider(source, frame.transform, new Vector2(0, -95), value =>
+            _board = MakeSlider(null, frame.transform, new Vector2(0, -95), value =>
             {
                 if (!_syncing) HudSizing._boardScale.Value = Mathf.Round(value) / 100f;
             });
@@ -334,29 +363,7 @@ namespace DiceVadersUltrawide
         [HideFromIl2Cpp]
         Slider MakeSlider(Slider source, Transform parent, Vector2 position, Action<float> changed)
         {
-            if (source == null) return MakeFallbackSlider(parent, position, changed);
-            // Clone under an inactive parent, so inherited scripts never run enabled.
-            var staging = new GameObject("SliderStaging");
-            staging.SetActive(false);
-            var clone = UnityEngine.Object.Instantiate(source.gameObject, staging.transform);
-            clone.SetActive(false);
-            foreach (var behaviour in clone.GetComponentsInChildren<MonoBehaviour>(true))
-            {
-                string space = behaviour.GetIl2CppType().Namespace;
-                if (space != "UnityEngine.UI" && space != "TMPro") behaviour.enabled = false;
-            }
-            foreach (var image in clone.GetComponentsInChildren<Image>(true)) MenuSkin.Keep(image.overrideSprite);
-            var slider = clone.GetComponent<Slider>();
-            slider.onValueChanged = new Slider.SliderEvent();
-            slider.minValue = 100;
-            slider.maxValue = 135;
-            slider.wholeNumbers = true;
-            slider.interactable = true;
-            slider.onValueChanged.AddListener((UnityAction<float>)(value => changed(value)));
-            Rect(clone, parent, new Vector2(620, 50), position);
-            UnityEngine.Object.Destroy(staging);
-            clone.SetActive(true);
-            return slider;
+            return MakeFallbackSlider(parent, position, changed);
         }
 
         [HideFromIl2Cpp]
@@ -368,15 +375,15 @@ namespace DiceVadersUltrawide
             hit.color = Color.clear;
             var track = new GameObject("Track");
             Rect(track, obj.transform, new Vector2(620, 22), Vector2.zero);
-            var trackImage = track.AddComponent<Image>();
-            trackImage.sprite = MenuSkin.Bar;
+            var trackImage = track.AddComponent<MenuGraphic>();
+
             trackImage.color = new Color(0.18f, 0.33f, 0.39f, 1f);
             var fill = new GameObject("Fill");
             var fillRect = Rect(fill, track.transform, Vector2.zero, Vector2.zero);
             fillRect.anchorMin = Vector2.zero;
             fillRect.anchorMax = Vector2.one;
-            var fillImage = fill.AddComponent<Image>();
-            fillImage.sprite = MenuSkin.Bar;
+            var fillImage = fill.AddComponent<MenuGraphic>();
+
             fillImage.color = new Color(0.42f, 0.72f, 0.80f, 1f);
             var handle = new GameObject("Handle");
             var handleRect = Rect(handle, track.transform, new Vector2(20, 30), Vector2.zero);
@@ -424,10 +431,10 @@ namespace DiceVadersUltrawide
         {
             var obj = new GameObject(value.Length == 0 ? "EnableFix" : value);
             Rect(obj, parent, size, position);
-            var image = obj.AddComponent<Image>();
-            image.sprite = _buttonSprite;
-            image.type = Image.Type.Sliced;
-            image.color = new Color(0.18f, 0.50f, 0.43f, 1);
+            var image = obj.AddComponent<MenuGraphic>();
+            image.Bottom = 0.22f;
+            image.Top = 0.78f;
+            image.color = new Color(0.12f, 0.34f, 0.32f, 1);
             var button = obj.AddComponent<Button>();
             button.targetGraphic = image;
             button.onClick.AddListener((UnityAction)(() => clicked()));
