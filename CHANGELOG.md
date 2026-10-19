@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.7 - 2026-10-19 (prerelease)
+
+- Stop borrowing scene font objects after the log confirmed a destroyed-font exception.
+- Give the overlay an owned Arial font protected from unused-asset unloading, with recovery if it is lost.
+- Remove the pause entry's native-font override.
+- Prebuild the overlay and cache inactive menu controllers; check visibility every frame to remove the delayed pause entry.
+- Preserve direct opening, native artwork where available, hotkeys, saved sizes, and 123% defaults.
+- Build verified; visual and pause-screen interaction verification pending.
+
+
 ## 0.5.6 - 2026-10-19 (prerelease)
 
 - Remove the Options-opening workaround: Pause and the menu hotkey open the standalone panel directly.

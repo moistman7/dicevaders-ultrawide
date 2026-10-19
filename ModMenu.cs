@@ -22,7 +22,7 @@ namespace DiceVadersUltrawide
         GameObject _root;
         GameObject _panel;
         SettingsSceneController _settings;
-        TMP_FontAsset _font;
+
         Font _labelFont;
 
         Sprite _buttonSprite;
@@ -66,18 +66,18 @@ namespace DiceVadersUltrawide
                 _nextSearch = Time.unscaledTime + 1f;
                 _settings = null;
                 _pause = null;
-                foreach (var pause in UnityEngine.Object.FindObjectsByType<PauseMenuController>(FindObjectsSortMode.None))
-                    if (pause.IsPaused) { _pause = pause; break; }
-                foreach (var settings in UnityEngine.Object.FindObjectsByType<SettingsSceneController>(FindObjectsSortMode.None))
+                foreach (var pause in UnityEngine.Object.FindObjectsByType<PauseMenuController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                    if (pause.gameObject.scene.IsValid()) { _pause = pause; break; }
+                foreach (var settings in UnityEngine.Object.FindObjectsByType<SettingsSceneController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 {
-                    if (settings.isActiveAndEnabled) { _settings = settings; break; }
+                    if (settings.gameObject.scene.IsValid()) { _settings = settings; break; }
                 }
-                if (_root != null && !_settingsStyle && !_panel.activeSelf && _settings != null && _settings.MasterVolumeSlider != null)
+                if (_root != null && !_settingsStyle && !_panel.activeSelf && _settings != null && _settings.isActiveAndEnabled && _settings.MasterVolumeSlider != null)
                 {
                     UnityEngine.Object.Destroy(_root);
                     _root = null;
                 }
-                if (_root == null && HudSizing._hudScale != null && (_settings != null || _pause != null || toggle))
+                if (_root == null && HudSizing._hudScale != null)
                 {
                     try { Build(_settings); }
                     catch (Exception error)
@@ -148,13 +148,6 @@ namespace DiceVadersUltrawide
                 image.color = native.color;
                 break;
             }
-            var nativeText = _pause.ResumeButton.GetComponentInChildren<TextMeshProUGUI>(true);
-            if (nativeText != null && nativeText.font != null && nativeText.font.sourceFontFile != null)
-            {
-                label.font = nativeText.font.sourceFontFile;
-
-                label.color = nativeText.color;
-            }
             var resume = _pause.ResumeButton.GetComponent<RectTransform>();
             if (resume == null) return;
             var canvas = resume.GetComponentInParent<Canvas>();
@@ -175,7 +168,17 @@ namespace DiceVadersUltrawide
         {
             if (_panel != null && _panel.activeSelf) SetOpen(false);
             if (_root != null) UnityEngine.Object.Destroy(_root);
+            if (_labelFont != null) UnityEngine.Object.Destroy(_labelFont);
+        }
 
+        void EnsureFont()
+        {
+            if (_labelFont != null) return;
+            _labelFont = Font.CreateDynamicFontFromOSFont("Arial", 32);
+            _labelFont.hideFlags = HideFlags.HideAndDontSave;
+            _labelFont.RequestCharactersInTexture("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%:/.- ", 32, FontStyle.Bold);
+            if (_root != null)
+                foreach (var label in _root.GetComponentsInChildren<Text>(true)) label.font = _labelFont;
         }
 
         void SetOpen(bool open)
@@ -183,6 +186,7 @@ namespace DiceVadersUltrawide
             if (_panel == null || _panel.activeSelf == open) return;
             if (open)
             {
+                EnsureFont();
                 _previousTimeScale = Time.timeScale;
                 _previousCursorVisible = Cursor.visible;
                 _previousCursorLock = Cursor.lockState;
@@ -227,7 +231,7 @@ namespace DiceVadersUltrawide
                 _boardLabel.SetAllDirty();
                 Canvas.ForceUpdateCanvases();
                 int vertices = _hudLabel.cachedTextGenerator.vertexCount;
-                Plugin.Instance.Log.LogInfo($"Menu opened: font={_labelFont.name}, HUD text vertices={vertices}, size={_hudLabel.rectTransform.rect.size}");
+                Plugin.Instance.Log.LogInfo($"Menu opened: font={(_labelFont != null ? _labelFont.name : "missing")}, HUD text vertices={vertices}, size={_hudLabel.rectTransform.rect.size}");
                 if (vertices <= 4)
                     Plugin.Instance.Log.LogError("Mod menu text generated no visible geometry. Please include this log when reporting UI problems.");
             }
@@ -256,14 +260,7 @@ namespace DiceVadersUltrawide
                 foreach (var option in Resources.FindObjectsOfTypeAll<OptionSlider>())
                     if (option.Slider != null) { source = option.Slider; break; }
             _nativeSliders = source != null;
-            TextMeshProUGUI text = settings != null ? settings.GetComponentInChildren<TextMeshProUGUI>(true) : null;
-            if (text == null)
-                foreach (var candidate in Resources.FindObjectsOfTypeAll<TextMeshProUGUI>())
-                    if (candidate.font != null) { text = candidate; break; }
-            if (text == null) throw new InvalidOperationException("Waiting for the game's UI font to load.");
-            _font = text.font;
-            _labelFont = _font.sourceFontFile;
-            if (_labelFont == null || !_labelFont.HasCharacter('H')) _labelFont = Font.CreateDynamicFontFromOSFont("Arial", 32);
+            EnsureFont();
             var image = source != null ? source.GetComponentInChildren<Image>(true) : null;
             _buttonSprite = image != null ? image.sprite : null;
 

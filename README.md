@@ -65,7 +65,7 @@ Output: `bin/Release/net6.0/DiceVadersUltrawide.dll`. Building does not install 
 
 ## Validation and limitations
 
-Builds against BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies with zero warnings/errors. The 0.5.6 menu uses fresh Unity UI text instead of cloned TMP labels, with the game's source font when available and Arial otherwise. This avoids inheriting scene text animations, masking, and visibility state. Loaded native slider artwork is reused where available.
+Builds against BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies with zero warnings/errors. The 0.5.7 menu uses fresh Unity UI text with its own Arial font, protected from unused-asset unloading. It never borrows a scene font. This addresses the destroyed-font error observed after scene changes, and avoids inheriting text animations, masking, or visibility state. Loaded native slider artwork is reused where available.
 
 Opening the menu logs the HUD label's generated vertex count. For a developer startup smoke check, launch with `DICEVADERS_UW_MENU_TEST=1` in the process environment; it opens the panel after UI startup and closes it two seconds later, logging text geometry and clock restoration. This is not a visual screenshot test.
 
@@ -76,3 +76,5 @@ Panel placement, slider interaction, scene changes, repeated reopening, tutorial
 Mod author and maintainer: **NorthernDale / moistman7**. This is the author's own repository.
 
 BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. Dependencies are referenced locally; game assets are not redistributed.
+
+The pause and Settings controllers are discovered even while inactive. Entry visibility is checked every frame, and the overlay is prebuilt at startup, removing the previous one-second wait when opening an already-loaded pause screen.
