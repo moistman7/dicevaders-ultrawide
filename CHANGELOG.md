@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.5 - 2026-10-19 (prerelease)
+
+- Style the pause entry using native Resume button artwork and font.
+- Route the pause entry through the game's Options flow, then open the same mod panel used in Settings.
+- Rebuild the panel from Settings assets when first arriving from Pause, avoiding a different fallback appearance.
+- Preserve configurable hotkeys, saved sizes, and the 123% default.
+- Build verified; pause-to-Settings flow still needs runtime confirmation.
+
+
 ## 0.5.4 - 2026-10-19 (prerelease)
 
 - Give the pause-menu entry a separate position above Game Menu, relative to the Resume button, instead of overlapping Resume and Options.

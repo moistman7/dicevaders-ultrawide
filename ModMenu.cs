@@ -43,6 +43,8 @@ namespace DiceVadersUltrawide
         PauseMenuController _pause;
         GameObject _eventRoot;
         readonly List<EventSystem> _suspendedEvents = new();
+        bool _settingsStyle;
+        bool _openWhenSettingsReady;
 
         void Update()
         {
@@ -66,7 +68,7 @@ namespace DiceVadersUltrawide
                 {
                     if (settings.isActiveAndEnabled) { _settings = settings; break; }
                 }
-                if (_root != null && !_nativeSliders && !_panel.activeSelf && _settings != null && _settings.MasterVolumeSlider != null)
+                if (_root != null && !_settingsStyle && !_panel.activeSelf && _settings != null && _settings.MasterVolumeSlider != null)
                 {
                     UnityEngine.Object.Destroy(_root);
                     _root = null;
@@ -88,16 +90,41 @@ namespace DiceVadersUltrawide
             bool inPause = _pause != null && _pause.IsPaused;
             _entry.SetActive(inSettings || inPause);
             PositionEntry(inSettings, inPause);
+            if (_openWhenSettingsReady && inSettings)
+            {
+                _openWhenSettingsReady = false;
+                SetOpen(true);
+            }
             var mouse = Mouse.current;
             if (!_panel.activeSelf && _entry.activeSelf && mouse != null && mouse.leftButton.wasPressedThisFrame &&
                 RectTransformUtility.RectangleContainsScreenPoint(_entry.GetComponent<RectTransform>(), mouse.position.ReadValue(), null))
-                SetOpen(true);
-            if (toggle) SetOpen(!_panel.activeSelf);
+                OpenFromEntry();
+            if (toggle)
+            {
+                if (_panel.activeSelf) SetOpen(false);
+                else OpenFromEntry();
+            }
             if (_panel.activeSelf)
             {
                 Sync();
                 if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetOpen(false);
             }
+        }
+
+        void OpenFromEntry()
+        {
+            if (_panel.activeSelf) return;
+            if (_pause != null && _pause.IsPaused && (_settings == null || !_settings.isActiveAndEnabled))
+            {
+                if (_openWhenSettingsReady) return;
+                // Use the game's own Options flow so Pause gets the exact same
+                // native assets and backdrop as the working Settings panel.
+                _openWhenSettingsReady = true;
+                _nextSearch = 0f;
+                _pause.OnPressOptions();
+                return;
+            }
+            SetOpen(true);
         }
 
         void PositionEntry(bool inSettings, bool inPause)
@@ -106,7 +133,28 @@ namespace DiceVadersUltrawide
             // Settings retains its existing placement. Pause gets its own row above
             // the Game Menu header instead of overlapping Resume and Options.
             entry.anchoredPosition = new Vector2(0, inSettings ? -470 : -230);
+            var image = _entry.GetComponent<Image>();
+            var label = _entry.GetComponentInChildren<TextMeshProUGUI>();
+            image.sprite = _buttonSprite;
+            image.color = new Color(0.18f, 0.50f, 0.43f, 1);
+            label.font = _font;
+            label.fontSharedMaterial = _fontMaterial;
             if (inSettings || !inPause || _pause.ResumeButton == null) return;
+            foreach (var native in _pause.ResumeButton.GetComponentsInChildren<Image>(true))
+            {
+                if (native.sprite == null) continue;
+                image.sprite = native.sprite;
+                image.type = native.type;
+                image.color = native.color;
+                break;
+            }
+            var nativeText = _pause.ResumeButton.GetComponentInChildren<TextMeshProUGUI>(true);
+            if (nativeText != null && nativeText.font != null)
+            {
+                label.font = nativeText.font;
+                label.fontSharedMaterial = nativeText.font.material;
+                label.color = nativeText.color;
+            }
             var resume = _pause.ResumeButton.GetComponent<RectTransform>();
             if (resume == null) return;
             var canvas = resume.GetComponentInParent<Canvas>();
@@ -189,6 +237,7 @@ namespace DiceVadersUltrawide
 
         void Build(SettingsSceneController settings)
         {
+            _settingsStyle = settings != null;
             Slider source = settings != null && settings.MasterVolumeSlider != null ? settings.MasterVolumeSlider.Slider : null;
             if (source == null)
                 foreach (var option in Resources.FindObjectsOfTypeAll<OptionSlider>())
@@ -231,7 +280,7 @@ namespace DiceVadersUltrawide
 
             _entry = Button(_root.transform, "ULTRAWIDE MOD", new Vector2(0, -470), new Vector2(360, 66), () =>
             {
-                SetOpen(true);
+                OpenFromEntry();
             });
             // A fixed lower-center entry avoids changing native menu navigation.
             _panel = new GameObject("UltrawideSettings");

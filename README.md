@@ -99,3 +99,5 @@ Menu = F10
 Use Input System key names such as `F1`, `F12`, `PageUp`, `PageDown`, `Home`, or `End`. Set an action to `None` to disable its shortcut. Choose different keys for different actions. Bindings are single keys, without modifier combinations; rebinding is through the config file rather than a menu key-capture control. Restart to apply changes. The Settings and Pause menu entries remain available if the Menu shortcut is disabled.
 
 Pause entry placement (0.5.4): the pause-screen button now sits in its own row above Game Menu, positioned relative to Resume. Settings keeps its existing entry location. Runtime visual confirmation is pending.
+
+Pause styling (0.5.5): the pause entry borrows the Resume button's artwork and font. Selecting it (or the menu hotkey while paused) opens the game's native Options screen and then the Settings-styled mod panel. Closing the mod panel returns to Options; use the game's normal exit to return from there. Runtime flow verification is pending.
