@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.9 - 2026-10-19 (prerelease)
+
+- Restore sliced rendering for native button/panel images after the 0.5.8 simple-rendering regression.
+- Select the effective displayed sprite (including overrides), skipping empty images.
+- Protect referenced UI sprites/textures from unused-asset unloading.
+- Preserve generated fallback padding with FullRect sprite geometry.
+- Keep the working owned font, hotkeys, and saved sizes.
+- Build verified; visual confirmation pending.
+
+
 ## 0.5.8 - 2026-10-19 (prerelease)
 
 - Replace the plain Pause fallback with Settings-style angled panel shapes, blue filled sliders, slash handles, and slim teal buttons.

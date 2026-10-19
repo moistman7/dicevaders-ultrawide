@@ -253,8 +253,18 @@ namespace DiceVadersUltrawide
                     if (option.Slider != null) { source = option.Slider; break; }
             _nativeSliders = source != null;
             EnsureFont();
-            var image = source != null ? source.GetComponentInChildren<Image>(true) : null;
-            _buttonSprite = image != null && image.sprite != null ? image.sprite : MenuSkin.Button;
+            _buttonSprite = null;
+            if (source != null)
+                foreach (var image in source.GetComponentsInChildren<Image>(true))
+                {
+                    // overrideSprite is the image actually displayed by the game.
+                    var visible = image.overrideSprite;
+                    if (visible == null) continue;
+                    _buttonSprite = MenuSkin.Keep(visible);
+                    break;
+                }
+            bool nativeArt = _buttonSprite != null;
+            if (!nativeArt) _buttonSprite = MenuSkin.Button;
 
             _root = new GameObject("UltrawideModMenu");
             UnityEngine.Object.DontDestroyOnLoad(_root);
@@ -289,8 +299,8 @@ namespace DiceVadersUltrawide
             var frame = new GameObject("Panel");
             Rect(frame, _panel.transform, new Vector2(900, 670), Vector2.zero);
             var background = frame.AddComponent<Image>();
-            background.sprite = source != null ? _buttonSprite : MenuSkin.Panel;
-            background.type = Image.Type.Simple;
+            background.sprite = nativeArt ? _buttonSprite : MenuSkin.Panel;
+            background.type = Image.Type.Sliced;
             background.color = new Color(0.12f, 0.28f, 0.30f, 1f);
             Label(frame.transform, "ULTRAWIDE MOD", new Vector2(0, 270), new Vector2(800, 70), 42);
             _enabledLabel = Button(frame.transform, "", new Vector2(0, 170), new Vector2(620, 65), () =>
@@ -335,6 +345,7 @@ namespace DiceVadersUltrawide
                 string space = behaviour.GetIl2CppType().Namespace;
                 if (space != "UnityEngine.UI" && space != "TMPro") behaviour.enabled = false;
             }
+            foreach (var image in clone.GetComponentsInChildren<Image>(true)) MenuSkin.Keep(image.overrideSprite);
             var slider = clone.GetComponent<Slider>();
             slider.onValueChanged = new Slider.SliderEvent();
             slider.minValue = 100;
@@ -415,7 +426,7 @@ namespace DiceVadersUltrawide
             Rect(obj, parent, size, position);
             var image = obj.AddComponent<Image>();
             image.sprite = _buttonSprite;
-            image.type = Image.Type.Simple;
+            image.type = Image.Type.Sliced;
             image.color = new Color(0.18f, 0.50f, 0.43f, 1);
             var button = obj.AddComponent<Button>();
             button.targetGraphic = image;

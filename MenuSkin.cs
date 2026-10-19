@@ -11,6 +11,14 @@ namespace DiceVadersUltrawide
         internal static Sprite Bar => _bar != null ? _bar : _bar = Shape(128, 24, 0, 24, 6);
         static Sprite _button, _panel, _bar;
 
+        internal static Sprite Keep(Sprite sprite)
+        {
+            if (sprite == null) return null;
+            sprite.hideFlags |= HideFlags.DontUnloadUnusedAsset;
+            if (sprite.texture != null) sprite.texture.hideFlags |= HideFlags.DontUnloadUnusedAsset;
+            return sprite;
+        }
+
         static Sprite Shape(int width, int height, int bottom, int top, int skew)
         {
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
@@ -27,7 +35,9 @@ namespace DiceVadersUltrawide
             texture.SetPixels32(pixels);
             texture.Apply(false, true);
             texture.hideFlags = HideFlags.HideAndDontSave;
-            var sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f));
+            // FullRect preserves intentional transparent padding; Tight trims it
+            // and turns our slim buttons/panel into oversized solid rectangles.
+            var sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
             sprite.hideFlags = HideFlags.HideAndDontSave;
             return sprite;
         }

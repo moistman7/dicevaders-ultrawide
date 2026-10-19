@@ -80,3 +80,5 @@ BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. D
 The pause and Settings controllers are discovered even while inactive. Entry visibility is checked every frame, and the overlay is prebuilt at startup, removing the previous one-second wait when opening an already-loaded pause screen.
 
 Pause styling (0.5.8): when native Settings assets have not loaded, the panel uses locally generated angled shapes, blue filled sliders with slash handles, and slim teal buttons. The pause entry no longer borrows green Resume artwork. Native Settings assets remain in use when available. These generated textures contain no copied game artwork.
+
+Image regression repair (0.5.9): native panel/button images again use sliced rendering. Asset discovery selects the effective displayed sprite, skipping empty images, and protects referenced artwork from unused-asset unloading. Generated fallback sprites preserve transparent margins with FullRect geometry. Runtime appearance is not yet visually verified.
