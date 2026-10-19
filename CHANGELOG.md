@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.5 - 2026-10-19 (prerelease)
+
+- Restore the block font's previously working nominal text sizes.
+- Enlarge Pause text to 170% through label transforms instead of requesting normalized glyph sizes.
+- Skip glyph-height requests for the block font; use transform scaling for block headings as well.
+- Keep the working Options body font resolution, controls, hotkeys, and saved sizes.
+- Build passed; pause visibility and visual size still need an in-game check.
+
+
 ## 0.6.4 - 2026-10-19 (prerelease)
 
 - Normalize native font sizes using measured glyph height, with an additional 15% readability increase for Pause.

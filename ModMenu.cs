@@ -291,7 +291,7 @@ namespace DiceVadersUltrawide
             var entryLabel = _entry.GetComponentInChildren<Text>();
             entryLabel.font = font != null ? font : _labelFont;
             entryLabel.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
-            entryLabel.fontSize = Mathf.RoundToInt(28 * FontSizeScale(font) * (inSettings ? 1f : 1.15f));
+            SizeNativeLabel(entryLabel, font, 28, inSettings);
             var entry = _entry.GetComponent<RectTransform>();
             // Settings retains its existing placement. Pause gets its own row above
             // the Game Menu header instead of overlapping Resume and Options.
@@ -360,13 +360,30 @@ namespace DiceVadersUltrawide
                 label.font = font != null ? font : _labelFont;
                 label.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
                 if (_baseTextSizes.TryGetValue(label.GetInstanceID(), out int size))
-                    label.fontSize = Mathf.RoundToInt(size * FontSizeScale(font) * (settings ? 1f : 1.15f));
+                    SizeNativeLabel(label, font, size, settings);
+            }
+        }
+
+        void SizeNativeLabel(Text label, Font font, int baseSize, bool settings)
+        {
+            if (font != null && font.name.Contains("Blockvaders"))
+            {
+                // Keep the previously working baked glyph sizes. Measuring and
+                // requesting this font at new sizes is avoided on the pause path.
+                label.fontSize = baseSize;
+                label.rectTransform.localScale = Vector3.one * (settings ? 1.6f : 1.7f);
+            }
+            else
+            {
+                label.rectTransform.localScale = Vector3.one;
+                label.fontSize = Mathf.RoundToInt(baseSize * FontSizeScale(font) * (settings ? 1f : 1.15f));
             }
         }
 
         float FontSizeScale(Font font)
         {
             if (font == null || font == _labelFont) return 1f;
+            if (font.name.Contains("Blockvaders")) return 1f;
             int id = font.GetInstanceID();
             if (_fontSizeScales.TryGetValue(id, out float cached)) return cached;
             if (font.dynamic) font.RequestCharactersInTexture("H", 32, FontStyle.Normal);
