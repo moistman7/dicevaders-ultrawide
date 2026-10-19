@@ -17,6 +17,7 @@ namespace DiceVadersUltrawide
         float _nextDiscovery;
         readonly List<Transform> _targets = new();
         Transform _board;
+        readonly Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3> _corners = new(4);
         readonly List<(Transform Target, Vector3 Scale, Vector3 Position)> _applied = new();
 
         void Start()
@@ -91,19 +92,18 @@ namespace DiceVadersUltrawide
             }
         }
 
-        static void KeepOnScreen(Transform target)
+        void KeepOnScreen(Transform target)
         {
             var rect = target.TryCast<RectTransform>();
             if (rect == null) return;
             var canvas = rect.GetComponentInParent<Canvas>();
             if (canvas == null) return;
             var camera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
-            var corners = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3>(4);
-            rect.GetWorldCorners(corners);
+            rect.GetWorldCorners(_corners);
             Vector2 min = new(float.MaxValue, float.MaxValue), max = new(float.MinValue, float.MinValue);
-            foreach (var corner in corners)
+            for (int i = 0; i < 4; i++)
             {
-                var point = RectTransformUtility.WorldToScreenPoint(camera, corner);
+                var point = RectTransformUtility.WorldToScreenPoint(camera, _corners[i]);
                 min = Vector2.Min(min, point);
                 max = Vector2.Max(max, point);
             }

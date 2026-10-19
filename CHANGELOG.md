@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.12 - 2026-10-19
+
+- Sharpen pause text by rasterizing at higher resolution without changing its visible size.
+- Centre the native language selector on ultrawide displays and extend its dimming layer across the full screen.
+- Preserve the game's default main-menu icon spacing.
+- Make the Options mod entry easier to see with a taller blue background, cyan border, and white text; retain Pause styling.
+- Reuse HUD/menu corner buffers, skip hidden-entry layout work, cache font/controller discovery, and avoid redundant panel text updates.
+- Preserve configurable hotkeys, saved sizes, 123% defaults, and existing menu controls.
+- Release build passed; runtime button and language-layout checks passed. Menu appearance approved in game. Frametime gains have not been measured.
 ## 0.6.6 - 2026-10-19 (prerelease)
 
 - Separate the Pause font cache from the Options font cache.

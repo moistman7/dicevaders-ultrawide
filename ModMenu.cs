@@ -67,6 +67,7 @@ namespace DiceVadersUltrawide
         int _pauseVisibleFrame = -1;
         Text _titleLabel;
         readonly Dictionary<int, int> _baseTextSizes = new();
+        readonly Dictionary<int, Vector2> _baseTextRects = new();
         readonly Dictionary<int, float> _fontSizeScales = new();
 
 
@@ -93,6 +94,15 @@ namespace DiceVadersUltrawide
         bool _captureStarted;
         bool _buttonTestDone;
         bool _fontTestDone;
+        readonly bool _smokeTest = Environment.GetEnvironmentVariable("DICEVADERS_UW_MENU_TEST") == "1";
+        readonly Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3> _entryCorners = new(4);
+        float _syncedHud = float.NaN, _syncedBoard = float.NaN;
+        bool? _syncedEnabled;
+        Text _entryLabel;
+        Font _entryFont;
+        bool? _entrySettings;
+        MenuGraphic _entryArtwork;
+        GameObject _entryBorder;
 
 
 
@@ -106,7 +116,7 @@ namespace DiceVadersUltrawide
                 _nextSearch = 0f;
             }
             var keyboard = Keyboard.current;
-            bool smoke = Environment.GetEnvironmentVariable("DICEVADERS_UW_MENU_TEST") == "1";
+            bool smoke = _smokeTest;
             bool toggle = Hotkeys.Pressed(Hotkeys.Menu) || (smoke && !_smokeOpened && Time.unscaledTime > 5f && Time.unscaledTime >= _nextSearch);
             if (Time.unscaledTime >= _nextSearch || toggle)
             {
@@ -142,8 +152,9 @@ namespace DiceVadersUltrawide
             bool exitingOptions = _closingSettings != null && _closingSettings.isActiveAndEnabled;
             bool inSettings = !exitingOptions && _settings != null && _settings.isActiveAndEnabled;
             bool inPause = !exitingOptions && _pause != null && _pause.IsPaused;
-            _entry.SetActive(inSettings || inPause);
-            PositionEntry(inSettings, inPause);
+            bool showEntry = inSettings || inPause;
+            if (_entry.activeSelf != showEntry) _entry.SetActive(showEntry);
+            if (showEntry) PositionEntry(inSettings, inPause);
             if (_panel.activeSelf && !inSettings && _pauseFont != null && _hudLabel.font != _pauseFont) ApplyPanelFonts();
 
             var mouse = Mouse.current;
@@ -292,10 +303,22 @@ namespace DiceVadersUltrawide
         {
             CaptureFonts(inSettings, inPause);
             Font font = inSettings ? _settingsFont : _pauseFont;
-            var entryLabel = _entry.GetComponentInChildren<Text>();
-            entryLabel.font = font != null ? font : _labelFont;
-            entryLabel.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
-            SizeNativeLabel(entryLabel, font, 28, inSettings);
+            if (_entryLabel == null) _entryLabel = _entry.GetComponentInChildren<Text>();
+            if (_entrySettings != inSettings || _entryFont != font)
+            {
+                _entryBorder.SetActive(inSettings);
+                _entryArtwork.Bottom = inSettings ? .10f : .22f;
+                _entryArtwork.Top = inSettings ? .90f : .78f;
+                _entryArtwork.rectTransform.sizeDelta = new Vector2(inSettings ? 352 : 360, inSettings ? 58 : 66);
+                _entryArtwork.color = inSettings ? new Color(.08f, .24f, .58f, 1f) : new Color(.12f, .34f, .32f, 1f);
+                _entryArtwork.SetVerticesDirty();
+                _entryLabel.font = font != null ? font : _labelFont;
+                _entryLabel.color = inSettings ? Color.white : new Color(.74f, .96f, .89f, 1f);
+                _entryLabel.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
+                SizeNativeLabel(_entryLabel, font, 28, inSettings);
+                _entrySettings = inSettings;
+                _entryFont = font;
+            }
             var entry = _entry.GetComponent<RectTransform>();
             // Settings retains its existing placement. Pause gets its own row above
             // the Game Menu header instead of overlapping Resume and Options.
@@ -305,11 +328,10 @@ namespace DiceVadersUltrawide
             if (resume == null) return;
             var canvas = resume.GetComponentInParent<Canvas>();
             var camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
-            var corners = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3>(4);
-            resume.GetWorldCorners(corners);
+            resume.GetWorldCorners(_entryCorners);
             float top = float.MinValue;
-            foreach (var corner in corners)
-                top = Mathf.Max(top, RectTransformUtility.WorldToScreenPoint(camera, corner).y);
+            for (int i = 0; i < 4; i++)
+                top = Mathf.Max(top, RectTransformUtility.WorldToScreenPoint(camera, _entryCorners[i]).y);
             float scale = _root.GetComponent<Canvas>().scaleFactor;
             float screenY = Mathf.Clamp(top + 130f * scale, 50f * scale, Screen.height - 50f * scale);
             if (RectTransformUtility.ScreenPointToLocalPointInRectangle(_root.GetComponent<RectTransform>(),
@@ -375,15 +397,19 @@ namespace DiceVadersUltrawide
 
         void SizeNativeLabel(Text label, Font font, int baseSize, bool settings)
         {
+            _baseTextRects.TryGetValue(label.GetInstanceID(), out Vector2 rect);
             if (font != null && font.name.Contains("Blockvaders"))
             {
-                // Keep the previously working baked glyph sizes. Measuring and
-                // requesting this font at new sizes is avoided on the pause path.
-                label.fontSize = baseSize;
-                label.rectTransform.localScale = Vector3.one * (settings ? 1.6f : 1.7f);
+                // Rasterize more densely, then downscale. Grow the layout rect by
+                // the same amount so the visible size and alignment do not change.
+                int resolution = font.dynamic && !settings ? 3 : 1;
+                label.fontSize = baseSize * resolution;
+                if (rect != Vector2.zero) label.rectTransform.sizeDelta = rect * resolution;
+                label.rectTransform.localScale = Vector3.one * ((settings ? 1.6f : 1.7f) / resolution);
             }
             else
             {
+                if (rect != Vector2.zero) label.rectTransform.sizeDelta = rect;
                 label.rectTransform.localScale = Vector3.one;
                 label.fontSize = Mathf.RoundToInt(baseSize * FontSizeScale(font) * (settings ? 1f : 1.15f));
             }
@@ -497,6 +523,10 @@ namespace DiceVadersUltrawide
 
         void Build(SettingsSceneController settings)
         {
+            _syncedHud = _syncedBoard = float.NaN;
+            _syncedEnabled = null;
+            _entryLabel = null;
+            _entrySettings = null;
             EnsureFont();
             _root = new GameObject("UltrawideModMenu");
             UnityEngine.Object.DontDestroyOnLoad(_root);
@@ -520,6 +550,16 @@ namespace DiceVadersUltrawide
             {
                 OpenFromEntry();
             });
+            _entryArtwork = _entry.transform.Find("Artwork").GetComponent<MenuGraphic>();
+            _entryBorder = new GameObject("OptionsButtonBorder");
+            Rect(_entryBorder, _entry.transform, new Vector2(360, 66), Vector2.zero);
+            _entryBorder.transform.SetAsFirstSibling();
+            var border = AddGraphic(_entryBorder);
+            border.Bottom = .10f;
+            border.Top = .90f;
+            border.color = new Color(.32f, .85f, 1f, 1f);
+            border.raycastTarget = false;
+            _entryBorder.SetActive(false);
             // A fixed lower-center entry avoids changing native menu navigation.
             _panel = new GameObject("UltrawideSettings");
             var panelRect = Rect(_panel, _root.transform, Vector2.zero, Vector2.zero);
@@ -628,6 +668,7 @@ namespace DiceVadersUltrawide
             label.text = value;
             label.fontSize = (int)fontSize;
             _baseTextSizes[label.GetInstanceID()] = (int)fontSize;
+            _baseTextRects[label.GetInstanceID()] = size;
             label.fontStyle = FontStyle.Bold;
             label.alignment = TextAnchor.MiddleCenter;
             label.color = new Color(0.74f, 0.96f, 0.89f, 1);
@@ -666,12 +707,18 @@ namespace DiceVadersUltrawide
 
         void Sync()
         {
+            float hud = HudSizing._hudScale.Value, board = HudSizing._boardScale.Value;
+            bool enabled = Plugin.Enabled.Value;
+            if (_syncedHud == hud && _syncedBoard == board && _syncedEnabled == enabled) return;
             _syncing = true;
             _hud.SetValueWithoutNotify(HudSizing._hudScale.Value * 100);
             _board.SetValueWithoutNotify(HudSizing._boardScale.Value * 100);
             _hudLabel.text = $"HUD SIZE   {HudSizing._hudScale.Value:P0}";
             _boardLabel.text = $"BOARD SIZE   {HudSizing._boardScale.Value:P0}";
             _enabledLabel.text = "ULTRAWIDE FIX: " + (Plugin.Enabled.Value ? "ON" : "OFF");
+            _syncedHud = hud;
+            _syncedBoard = board;
+            _syncedEnabled = enabled;
             _syncing = false;
         }
     }

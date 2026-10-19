@@ -13,6 +13,7 @@ namespace DiceVadersUltrawide
 
         internal void CaptureAvailable()
         {
+            if (Find("StarvadersGun") != null) return;
             foreach (var font in Resources.FindObjectsOfTypeAll<Font>())
                 if (font != null && !font.name.StartsWith("Ultrawide-") && font.name.ToLowerInvariant().Contains("starvaders")) CopySource(font);
         }

@@ -65,34 +65,18 @@ Output: `bin/Release/net6.0/DiceVadersUltrawide.dll`. Building does not install 
 
 ## Validation and limitations
 
-0.6.0 renders one shared panel skin for Settings, Pause, and the hotkey. Its angled backdrop, slim teal buttons, blue slider fills, and slash handles are drawn as UI geometry. No native scene sprites, texture trimming, or scene-first fallback selection is involved. Text uses an owned Arial font protected from asset unloading.
+Version 0.6.12 includes the approved Settings/Pause panels, sharper pause text, a more visible blue Options entry with a cyan border, and a centred language selector with full-screen dimming. Main-menu icon spacing stays at the game's default.
 
-Settings OnEnable and Pause OnPause are hooked directly to cache the opening controller and prepare the entry immediately. Visibility is checked every frame, with periodic discovery only as a fallback. Controller searches prefer the active Settings screen or paused controller over inactive duplicates.
+The menus use protected copies of the game's contextual fonts, with Arial as a fallback. Settings and Pause opening hooks prepare their entries immediately; Options exit hooks hide the entry during transitions. Button hit targets use standard Unity Images, while angled artwork is rendered as geometry.
 
-The build passes with zero warnings/errors against BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies. A startup runtime check confirms custom graphic registration, text geometry, and clock restoration. User feedback confirmed the previous controls work; the new appearance and open-hook timing still need an in-game check.
+The mod reuses corner buffers, skips hidden-entry layout work, caches the main-menu controller and available handwriting font, and updates panel text only when values change. These reduce unnecessary work; frametime improvements have not been benchmarked.
 
-For a developer startup smoke check, launch with `DICEVADERS_UW_MENU_TEST=1` in the process environment. It opens the panel after startup and closes it two seconds later. An optional `DICEVADERS_UW_MENU_CAPTURE` PNG path requests an end-of-frame capture. Hidden-window captures can be black and are not proof of visual correctness.
+The Release build passes with zero warnings/errors against BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies. Runtime checks passed for Toggle, Reset, and Close raycast targets and pointer callbacks, plus language-panel centring and backdrop coverage at 3440x1440. The author confirmed the menu appearance in game. Controller navigation and overlap at every size/aspect ratio remain unverified.
 
-Panel placement, controller navigation, transitions, and larger-size overlap still need verification. Bounds correction applies only to supported RectTransform holders. Logs are in `BepInEx/LogOutput.log`.
+Developer checks use process environment variables: `DICEVADERS_UW_MENU_TEST=1` opens/closes the panel; add `DICEVADERS_UW_BUTTON_TEST=1` to check button callbacks and restore saved values. `DICEVADERS_UW_LAYOUT_TEST=1` advances from the startup prompt, opens the language selector, and logs its geometry. An optional `DICEVADERS_UW_MENU_CAPTURE` PNG path requests an end-of-frame capture. Hidden-window captures can be black and are not proof of visual correctness. Logs are in `BepInEx/LogOutput.log`.
+
 ## Credits
 
 Mod author and maintainer: **NorthernDale / moistman7**. This is the author's own repository.
 
 BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. Dependencies are referenced locally; game assets are not redistributed.
-
-The pause and Settings controllers are discovered even while inactive. Entry visibility is checked every frame, and the overlay is prebuilt at startup, removing the previous one-second wait when opening an already-loaded pause screen.
-
-Button hit targets (0.6.1): buttons use transparent standard Unity Images for mouse hit testing; custom geometry is visual-only. This keeps the same panel appearance while restoring normal Button clicks. An additional developer check, DICEVADERS_UW_BUTTON_TEST=1 together with the menu smoke environment flag, tests top raycast targets and native pointer-click callbacks for Toggle, Reset, and Close, then restores saved settings.
-
-
-0.6.1 verification: after waiting two UI layout frames, Toggle, Reset, and Close were each the top raycast target and their native pointer-click callbacks passed. The check restores the previous enable state and HUD/board values. This tests the shared panel logic used by Settings and Pause; it does not verify styling visually.
-
-Options exit timing (0.6.2): SaveAndExit and OnDisable hide the entry directly. The entry stays suppressed while the closing Settings controller remains active during its transition, rather than reappearing through periodic discovery. Reopening Settings clears the closing state.
-
-Contextual fonts (0.6.3): Pause uses an owned copy of the native Resume label's source font. Settings uses an owned copy of Apply & Exit's source font for the entry and panel body, plus the Settings heading font for the title. Native copies use their regular style to avoid adding synthetic bold weight. Arial remains the fallback when a source font is unavailable. DICEVADERS_UW_FONT_TEST=1, together with the startup smoke flag, validates copied fonts after unused-asset unloading.
-
-Font sizing (0.6.4): native text sizes are normalized against Arial's capital-glyph height, with another 15% increase for Pause. Settings can resolve cached native font families when baked TMP assets have no source-file link, and searches visible action/body labels when ApplyButton text cannot be found. Text size normalization is cached per font.
-
-Pause font repair (0.6.5): Blockvaders labels keep their original nominal font sizes and are enlarged by their transforms (170% in Pause), bypassing glyph-height measurement requests for that font. Settings keeps its working handwritten font lookup and body sizing. Visual confirmation of the pause repair is pending.
-
-Pause font isolation (0.6.6): startup precaching is limited to the Settings handwriting family. Pause captures its own native font after Resume has been active for a frame and uses an independent UI/Default material. A readable fallback remains while the native font/texture is unavailable. The Options font cache and lookup remain separate. Pause rendering has not yet been visually confirmed.
