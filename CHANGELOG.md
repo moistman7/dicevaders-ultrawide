@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 - 2026-10-19 (experimental prerelease)
+
+- Add encounter HUD and board sizing, defaulting to 112% and 118%.
+- Add F6/F7 size adjustment with saved settings and F8 restoration.
+- Add bounds correction for supported RectTransform holders.
+- Keep enlargement separate from canvas-match settings to reduce global zoom clipping.
+- Build verified; runtime layout, animation, and input validation pending.
+
+
 ## 0.2.0 - 2026-10-19 (prerelease)
 
 - Reduce canvas discovery from 20 to 4 scans per second.

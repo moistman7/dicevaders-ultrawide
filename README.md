@@ -46,3 +46,9 @@ Before treating this as stable, check F8 restoration, tutorial placement, the bo
 ## Credits and permissions
 
 Original mod and source: NorthernDale. BepInEx and Il2CppInterop belong to their respective authors. Third-party components are referenced locally and are not redistributed. No additional source redistribution license is granted by this repository; contact the author for reuse permission.
+
+## Larger encounter interface (0.3.0 experimental)
+
+Encounter artifact, score, button, and board holders can now be enlarged independently of global canvas scaling. Defaults are `Interface/HudScale = 1.12` and `Interface/BoardScale = 1.18`. F6 decreases both by 2 percentage points; F7 increases both. Values are saved and limited to 1.00–1.35. F8 disables these changes together with the ultrawide fix. These controls apply only above 16:9.
+
+Screen-edge correction applies to RectTransform holders whose bounds fit on screen. It cannot guarantee that artwork in full-screen containers or overlapping panels stays visible. The game exposes holder transforms, but their actual layout and animations still require in-game validation. This revision is experimental, not a confirmed fix for clipping. Start with the defaults and use F6 if panels crowd each other.
