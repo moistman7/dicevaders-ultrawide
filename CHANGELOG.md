@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.2 - 2026-10-19 (prerelease)
+
+- Hide the mod entry immediately when Options SaveAndExit starts and when Settings disables.
+- Suppress entry rediscovery during the closing Settings screen's transition; clear that state when Settings reopens.
+- Keep button input, shared styling, hotkeys, and saved sizes unchanged.
+- Build passed; exit-transition timing needs an in-game check.
+
+
 ## 0.6.1 - 2026-10-19 (prerelease)
 
 - Give buttons standard transparent Unity Image hit targets; custom geometry is visual-only.

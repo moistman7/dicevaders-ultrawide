@@ -10,6 +10,18 @@ namespace DiceVadersUltrawide
         static void Postfix(SettingsSceneController __instance) => ModMenu.SettingsOpened(__instance);
     }
 
+    [HarmonyPatch(typeof(SettingsSceneController), nameof(SettingsSceneController.SaveAndExit))]
+    internal static class SettingsMenuExitLifecycle
+    {
+        static void Prefix(SettingsSceneController __instance) => ModMenu.SettingsClosing(__instance);
+    }
+
+    [HarmonyPatch(typeof(SettingsSceneController), nameof(SettingsSceneController.OnDisable))]
+    internal static class SettingsMenuDisableLifecycle
+    {
+        static void Prefix(SettingsSceneController __instance) => ModMenu.SettingsClosing(__instance);
+    }
+
     [HarmonyPatch(typeof(PauseMenuController), nameof(PauseMenuController.OnPause))]
     internal static class PauseMenuLifecycle
     {

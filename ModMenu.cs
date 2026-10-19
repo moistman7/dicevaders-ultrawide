@@ -26,8 +26,17 @@ namespace DiceVadersUltrawide
         internal static void SettingsOpened(SettingsSceneController settings)
         {
             if (_live == null) return;
+            _live._closingSettings = null;
             _live._settings = settings;
             _live.ShowEntryNow(true);
+        }
+
+        internal static void SettingsClosing(SettingsSceneController settings)
+        {
+            if (_live == null) return;
+            _live._closingSettings = settings;
+            if (_live._entry != null) _live._entry.SetActive(false);
+            if (_live._panel != null && _live._panel.activeSelf) _live.SetOpen(false);
         }
 
         internal static void PauseOpened(PauseMenuController pause)
@@ -49,6 +58,7 @@ namespace DiceVadersUltrawide
         GameObject _root;
         GameObject _panel;
         SettingsSceneController _settings;
+        SettingsSceneController _closingSettings;
 
         Font _labelFont;
 
@@ -120,8 +130,9 @@ namespace DiceVadersUltrawide
                 }
             }
             if (_root == null) return;
-            bool inSettings = _settings != null && _settings.isActiveAndEnabled;
-            bool inPause = _pause != null && _pause.IsPaused;
+            bool exitingOptions = _closingSettings != null && _closingSettings.isActiveAndEnabled;
+            bool inSettings = !exitingOptions && _settings != null && _settings.isActiveAndEnabled;
+            bool inPause = !exitingOptions && _pause != null && _pause.IsPaused;
             _entry.SetActive(inSettings || inPause);
             PositionEntry(inSettings, inPause);
 

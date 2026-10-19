@@ -86,3 +86,5 @@ Button hit targets (0.6.1): buttons use transparent standard Unity Images for mo
 
 
 0.6.1 verification: after waiting two UI layout frames, Toggle, Reset, and Close were each the top raycast target and their native pointer-click callbacks passed. The check restores the previous enable state and HUD/board values. This tests the shared panel logic used by Settings and Pause; it does not verify styling visually.
+
+Options exit timing (0.6.2): SaveAndExit and OnDisable hide the entry directly. The entry stays suppressed while the closing Settings controller remains active during its transition, rather than reappearing through periodic discovery. Reopening Settings clears the closing state.

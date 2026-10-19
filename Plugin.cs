@@ -13,7 +13,7 @@ using HarmonyLib;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.6.1")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.6.2")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;
@@ -53,6 +53,8 @@ namespace DiceVadersUltrawide
             AddComponent<ModMenu>();
             new Harmony("local.dicevaders.ultrawide.scaling").PatchAll(typeof(CanvasScalingPatch));
             new Harmony("local.dicevaders.ultrawide.menus").PatchAll(typeof(SettingsMenuLifecycle));
+            new Harmony("local.dicevaders.ultrawide.menus").PatchAll(typeof(SettingsMenuExitLifecycle));
+            new Harmony("local.dicevaders.ultrawide.menus").PatchAll(typeof(SettingsMenuDisableLifecycle));
             new Harmony("local.dicevaders.ultrawide.menus").PatchAll(typeof(PauseMenuLifecycle));
             Log.LogInfo($"DiceVaders Ultrawide by NorthernDale loaded. Toggle = {Hotkeys.ToggleFix.Value}; diagnostics = {Hotkeys.Diagnostics.Value}; menu = {Hotkeys.Menu.Value}.");
         }
