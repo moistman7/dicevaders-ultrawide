@@ -12,7 +12,7 @@ using UnityEngine.UI;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.3.0")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.4.0")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;
@@ -46,7 +46,6 @@ namespace DiceVadersUltrawide
 
             ClassInjector.RegisterTypeInIl2Cpp<UwBehaviour>();
             AddComponent<UwBehaviour>();
-            AddComponent<HudSizing>();
             Log.LogInfo("DiceVaders Ultrawide loaded. F8 = toggle fix, F9 = dump cameras/canvases to log.");
         }
     }

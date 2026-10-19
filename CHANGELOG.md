@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 - 2026-10-19 (prerelease)
+
+- Remove experimental panel and board enlargement to preserve the original game's UI proportions.
+- Remove per-frame transform adjustments, bounds correction, F6/F7 sizing controls, and the game-specific assembly dependency.
+- Keep height-based ultrawide canvas scaling, F8 toggle, and resolution handling.
+- Build verified; runtime visual comparison pending.
+
+
 ## 0.3.0 - 2026-10-19 (experimental prerelease)
 
 - Add encounter HUD and board sizing, defaulting to 112% and 118%.

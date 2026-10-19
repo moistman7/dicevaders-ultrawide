@@ -39,7 +39,7 @@ Output: `bin/Release/net6.0/DiceVadersUltrawide.dll`. Building does not install 
 
 ## Validation and limitations
 
-0.2.0 is a cleanup prerelease. It compiles against the installed BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies with zero warnings/errors. Runtime validation of this revision is pending. The original screenshots show 3440x1440 gameplay; they are not evidence that this revision fixes tutorial positioning or bottom-panel clipping. This plugin changes canvas scaling, not individual UI anchors, game artwork, camera framing, or render textures.
+0.4.0 preserves the original UI proportions and removes the experimental panel enlargement from 0.3.0. It is a prerelease. It compiles against the installed BepInEx 6 build 788 and Unity 6000.3.10f1 interop assemblies with zero warnings/errors. Runtime validation of this revision is pending. The original screenshots show 3440x1440 gameplay; they are not evidence that this revision fixes tutorial positioning or bottom-panel clipping. This plugin changes canvas scaling, not individual UI anchors, game artwork, camera framing, or render textures.
 
 Before treating this as stable, check F8 restoration, tutorial placement, the bottom invasion panel, scene transitions, 16:9, 3440x1440, and resolution changes. F9 diagnostics can help investigate any remaining issues.
 
@@ -47,8 +47,8 @@ Before treating this as stable, check F8 restoration, tutorial placement, the bo
 
 Original mod and source: NorthernDale. BepInEx and Il2CppInterop belong to their respective authors. Third-party components are referenced locally and are not redistributed. No additional source redistribution license is granted by this repository; contact the author for reuse permission.
 
-## Larger encounter interface (0.3.0 experimental)
+## Original UI proportions (0.4.0)
 
-Encounter artifact, score, button, and board holders can now be enlarged independently of global canvas scaling. Defaults are `Interface/HudScale = 1.12` and `Interface/BoardScale = 1.18`. F6 decreases both by 2 percentage points; F7 increases both. Values are saved and limited to 1.00–1.35. F8 disables these changes together with the ultrawide fix. These controls apply only above 16:9.
+The UI uses height-based canvas scaling (`General/CanvasMatch = 1`) so its elements retain their original proportions and height-relative size at ultrawide resolutions. Existing game anchors lay out panels across the wider canvas. This revision removes the 0.3.0 HUD/board enlargement, transform offsets, and F6/F7 shortcuts. Old Interface/HudScale and BoardScale settings are ignored. F8 still toggles the ultrawide canvas fix.
 
-Screen-edge correction applies to RectTransform holders whose bounds fit on screen. It cannot guarantee that artwork in full-screen containers or overlapping panels stays visible. The game exposes holder transforms, but their actual layout and animations still require in-game validation. This revision is experimental, not a confirmed fix for clipping. Start with the defaults and use F6 if panels crowd each other.
+This restores the original scaling approach; it does not stretch the 16:9 image or enlarge individual panels. The wider layout naturally has more horizontal space. Exact panel placement and tutorial screens still require runtime verification.
