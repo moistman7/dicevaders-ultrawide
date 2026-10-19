@@ -1,0 +1,185 @@
+using System;
+using System.Collections.Generic;
+using System.Text;
+using BepInEx;
+using BepInEx.Configuration;
+using BepInEx.Unity.IL2CPP;
+using Il2CppInterop.Runtime;
+using Il2CppInterop.Runtime.Injection;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.UI;
+
+namespace DiceVadersUltrawide
+{
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.2.0")]
+    public class Plugin : BasePlugin
+    {
+        internal static Plugin Instance;
+        internal static ConfigEntry<bool> Enabled;
+        internal static ConfigEntry<float> MatchValue;
+        internal static ConfigEntry<bool> ForceResolution;
+        internal static ConfigEntry<int> ResWidth;
+        internal static ConfigEntry<int> ResHeight;
+        internal static ConfigEntry<string> ScreenMode;
+        internal static ConfigEntry<float> ForceDelay;
+        internal static ConfigEntry<float> ForceWindow;
+
+        public override void Load()
+        {
+            Instance = this;
+            Enabled = Config.Bind("General", "Enabled", true,
+                "Apply the ultrawide fix. F8 toggles it in game.");
+            MatchValue = Config.Bind("General", "CanvasMatch", 1f,
+                new ConfigDescription("CanvasScaler match value used on ultrawide. 0 = match width (zoomed), 1 = match height (no zoom).", new AcceptableValueRange<float>(0f, 1f)));
+
+            ForceResolution = Config.Bind("Resolution", "ForceResolution", true,
+                "Set the resolution at startup (replaces the -screen-width/-screen-height launch options).");
+            ResWidth = Config.Bind("Resolution", "Width", 0, "Target width in pixels. 0 = use the monitor's native width.");
+            ResHeight = Config.Bind("Resolution", "Height", 0, "Target height in pixels. 0 = use the monitor's native height.");
+            ScreenMode = Config.Bind("Resolution", "ScreenMode", "FullScreenWindow",
+                "FullScreenWindow (borderless), ExclusiveFullScreen, MaximizedWindow or Windowed.");
+            ForceDelay = Config.Bind("Resolution", "DelaySeconds", 2f,
+                new ConfigDescription("Wait this long after launch before forcing the resolution, so the game's own setup runs first.", new AcceptableValueRange<float>(0f, 120f)));
+            ForceWindow = Config.Bind("Resolution", "RetrySeconds", 15f,
+                new ConfigDescription("Keep re-applying for this many seconds if the game changes it back. After that the in-game settings are left alone.", new AcceptableValueRange<float>(0f, 120f)));
+
+            ClassInjector.RegisterTypeInIl2Cpp<UwBehaviour>();
+            AddComponent<UwBehaviour>();
+            Log.LogInfo("DiceVaders Ultrawide loaded. F8 = toggle fix, F9 = dump cameras/canvases to log.");
+        }
+    }
+
+    public class UwBehaviour : MonoBehaviour
+    {
+        public UwBehaviour(IntPtr ptr) : base(ptr) { }
+
+        static float _next;
+        static float _nextForce;
+        static float _nextError;
+        static readonly Dictionary<int, (CanvasScaler Scaler, float Match)> Original = new();
+        static readonly List<int> Stale = new();
+
+        void OnDestroy()
+        {
+            foreach (var entry in Original.Values)
+                if (entry.Scaler != null) entry.Scaler.matchWidthOrHeight = entry.Match;
+            Original.Clear();
+        }
+
+        void Update()
+        {
+            try
+            {
+                var kb = Keyboard.current;
+                if (kb != null)
+                {
+                    if (kb.f8Key.wasPressedThisFrame)
+                    {
+                        Plugin.Enabled.Value = !Plugin.Enabled.Value;
+                        Plugin.Instance.Log.LogInfo("Fix enabled = " + Plugin.Enabled.Value);
+                        _next = 0f;
+                    }
+                    if (kb.f9Key.wasPressedThisFrame) Dump();
+                }
+
+                ForceRes();
+
+                if (Time.unscaledTime < _next) return;
+                _next = Time.unscaledTime + 0.25f;
+                Apply();
+            }
+            catch (Exception e)
+            {
+                if (Time.unscaledTime >= _nextError)
+                {
+                    _nextError = Time.unscaledTime + 5f;
+                    Plugin.Instance.Log.LogError(e.ToString());
+                }
+            }
+        }
+
+        static void ForceRes()
+        {
+            if (!Plugin.Enabled.Value || !Plugin.ForceResolution.Value) return;
+            float t = Time.unscaledTime;
+            if (t < Plugin.ForceDelay.Value || t > Plugin.ForceDelay.Value + Plugin.ForceWindow.Value) return;
+            if (t < _nextForce) return;
+            _nextForce = t + 1f;
+
+            int w = Plugin.ResWidth.Value, h = Plugin.ResHeight.Value;
+            if (w <= 0) w = Display.main.systemWidth;
+            if (h <= 0) h = Display.main.systemHeight;
+            if (w <= 0 || h <= 0) return;
+
+
+            FullScreenMode mode;
+            if (!Enum.TryParse(Plugin.ScreenMode.Value, true, out mode) || !Enum.IsDefined(typeof(FullScreenMode), mode)) mode = FullScreenMode.FullScreenWindow;
+            if (Screen.width == w && Screen.height == h && Screen.fullScreenMode == mode) return;
+            Plugin.Instance.Log.LogInfo($"Forcing resolution {w}x{h} {mode} (was {Screen.width}x{Screen.height})");
+            Screen.SetResolution(w, h, mode);
+        }
+
+        static void Apply()
+        {
+            Stale.Clear();
+            foreach (var entry in Original)
+                if (entry.Value.Scaler == null) Stale.Add(entry.Key);
+            foreach (int id in Stale) Original.Remove(id);
+            if (Screen.height <= 0) return;
+            float aspect = (float)Screen.width / Screen.height;
+            var scalers = UnityEngine.Object.FindObjectsByType<CanvasScaler>(FindObjectsSortMode.None);
+            foreach (var s in scalers)
+            {
+                if (s == null) continue;
+                if (s.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize) continue;
+                if (s.screenMatchMode != CanvasScaler.ScreenMatchMode.MatchWidthOrHeight) continue;
+
+                int id = s.GetInstanceID();
+                var rr = s.referenceResolution;
+                float refAspect = rr.y > 0 ? rr.x / rr.y : 16f / 9f;
+                bool want = Plugin.Enabled.Value && aspect > refAspect + 0.01f;
+
+                if (want)
+                {
+                    if (!Original.TryGetValue(id, out var saved) || saved.Scaler != s)
+                        Original[id] = (s, s.matchWidthOrHeight);
+                    if (Math.Abs(s.matchWidthOrHeight - Mathf.Clamp01(Plugin.MatchValue.Value)) > 0.001f)
+                        s.matchWidthOrHeight = Mathf.Clamp01(Plugin.MatchValue.Value);
+                }
+                else if (Original.TryGetValue(id, out var orig))
+                {
+                    if (orig.Scaler == s) s.matchWidthOrHeight = orig.Match;
+                    Original.Remove(id);
+                }
+            }
+        }
+
+        static void Dump()
+        {
+            var log = Plugin.Instance.Log;
+            var sb = new StringBuilder();
+            sb.AppendLine($"=== DUMP === screen {Screen.width}x{Screen.height} aspect {(float)Screen.width / Screen.height:F3} fullscreen={Screen.fullScreenMode}");
+
+            foreach (var s in UnityEngine.Object.FindObjectsByType<CanvasScaler>(FindObjectsSortMode.None))
+            {
+                if (s == null) continue;
+                sb.AppendLine($"CanvasScaler '{s.gameObject.name}' mode={s.uiScaleMode} ref={s.referenceResolution} " +
+                              $"match={s.matchWidthOrHeight} matchMode={s.screenMatchMode} scaleFactor={s.scaleFactor}");
+            }
+
+            foreach (var c in Camera.allCameras)
+            {
+                if (c == null) continue;
+                sb.AppendLine($"Camera '{c.name}' ortho={c.orthographic} orthoSize={c.orthographicSize} fov={c.fieldOfView} " +
+                              $"aspect={c.aspect:F3} rect={c.rect} pixelRect={c.pixelRect} depth={c.depth}");
+                foreach (var comp in c.GetComponents<Component>())
+                {
+                    if (comp == null) continue;
+                    sb.AppendLine("    component: " + comp.GetIl2CppType().Name);
+                }
+            }
+            log.LogInfo(sb.ToString());
+        }
+    }
+}
