@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.4 - 2026-10-19 (prerelease)
+
+- Normalize native font sizes using measured glyph height, with an additional 15% readability increase for Pause.
+- Enlarge the pause entry and all pause-panel text without changing layout or controls.
+- Cache native font sources before Settings assets strip their source-file links, and resolve named font families.
+- Search Settings body/action labels when ApplyButton does not expose usable text.
+- Keep hotkeys, saved sizes, and menu exit handling.
+- Build passed; startup used the copied StarvadersGun font, and font-lifetime plus button click/raycast checks passed.
+
+
 ## 0.6.3 - 2026-10-19 (prerelease)
 
 - Match the pause entry and panel to Resume's native source font.

@@ -65,6 +65,8 @@ namespace DiceVadersUltrawide
         readonly MenuFonts _fonts = new();
         Font _settingsFont, _settingsTitleFont, _pauseFont;
         Text _titleLabel;
+        readonly Dictionary<int, int> _baseTextSizes = new();
+        readonly Dictionary<int, float> _fontSizeScales = new();
 
 
         Slider _hud;
@@ -108,6 +110,7 @@ namespace DiceVadersUltrawide
             if (Time.unscaledTime >= _nextSearch || toggle)
             {
                 _nextSearch = Time.unscaledTime + 1f;
+                _fonts.CaptureAvailable();
                 _settings = null;
                 _pause = null;
                 foreach (var pause in UnityEngine.Object.FindObjectsByType<PauseMenuController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
@@ -288,6 +291,7 @@ namespace DiceVadersUltrawide
             var entryLabel = _entry.GetComponentInChildren<Text>();
             entryLabel.font = font != null ? font : _labelFont;
             entryLabel.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
+            entryLabel.fontSize = Mathf.RoundToInt(28 * FontSizeScale(font) * (inSettings ? 1f : 1.15f));
             var entry = _entry.GetComponent<RectTransform>();
             // Settings retains its existing placement. Pause gets its own row above
             // the Game Menu header instead of overlapping Resume and Options.
@@ -324,10 +328,21 @@ namespace DiceVadersUltrawide
             {
                 if (_settingsFont == null && _settings.ApplyButton != null)
                     _settingsFont = _fonts.Copy(_settings.ApplyButton.GetComponentInChildren<TextMeshProUGUI>(true));
+                if (_settingsFont == null)
+                    foreach (var label in _settings.GetComponentsInChildren<TextMeshProUGUI>(true))
+                        if (label.text != null && (label.text.ToLowerInvariant().Contains("apply") || label.text.ToLowerInvariant().Contains("master volume")))
+                        {
+                            _settingsFont = _fonts.Copy(label);
+                            if (_settingsFont != null) break;
+                        }
                 if (_settingsTitleFont == null)
                     foreach (var label in _settings.GetComponentsInChildren<TextMeshProUGUI>(true))
                         if (label.text != null && label.text.ToUpperInvariant().Contains("OPTIONS"))
                         { _settingsTitleFont = _fonts.Copy(label); break; }
+                // These are the native English button and heading families, also
+                // loaded by the main menu before stripped Settings assets appear.
+                if (_settingsFont == null) _settingsFont = _fonts.Find("StarvadersGun");
+                if (_settingsTitleFont == null) _settingsTitleFont = _fonts.Find("Blockvaders");
             }
             if (pause && _pause != null && _pauseFont == null && _pause.ResumeButton != null)
                 _pauseFont = _fonts.Copy(_pause.ResumeButton.GetComponentInChildren<TextMeshProUGUI>(true));
@@ -337,14 +352,39 @@ namespace DiceVadersUltrawide
         {
             bool settings = _settings != null && _settings.isActiveAndEnabled;
             CaptureFonts(settings, _pause != null);
-            Font body = settings ? _settingsFont : _pauseFont;
-            Font title = settings ? _settingsTitleFont : _pauseFont;
+            Font body = settings ? _settingsFont : (_pause != null ? _pauseFont : _fonts.Find("StarvadersGun"));
+            Font title = settings ? _settingsTitleFont : (_pause != null ? _pauseFont : _fonts.Find("Blockvaders"));
             foreach (var label in _panel.GetComponentsInChildren<Text>(true))
             {
                 var font = label == _titleLabel ? title : body;
                 label.font = font != null ? font : _labelFont;
                 label.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
+                if (_baseTextSizes.TryGetValue(label.GetInstanceID(), out int size))
+                    label.fontSize = Mathf.RoundToInt(size * FontSizeScale(font) * (settings ? 1f : 1.15f));
             }
+        }
+
+        float FontSizeScale(Font font)
+        {
+            if (font == null || font == _labelFont) return 1f;
+            int id = font.GetInstanceID();
+            if (_fontSizeScales.TryGetValue(id, out float cached)) return cached;
+            if (font.dynamic) font.RequestCharactersInTexture("H", 32, FontStyle.Normal);
+            _labelFont.RequestCharactersInTexture("H", 32, FontStyle.Bold);
+            if (font.GetCharacterInfo('H', out CharacterInfo native, 32, FontStyle.Normal) &&
+                _labelFont.GetCharacterInfo('H', out CharacterInfo baseline, 32, FontStyle.Bold))
+            {
+                int height = native.maxY - native.minY;
+                if (height > 0)
+                {
+                    float scale = Mathf.Clamp((float)(baseline.maxY - baseline.minY) / height, 0.75f, 2.5f);
+                    _fontSizeScales[id] = scale;
+                    return scale;
+                }
+            }
+            float fallback = font.name.Contains("Blockvaders") ? 1.6f : 1f;
+            _fontSizeScales[id] = fallback;
+            return fallback;
         }
 
         void EnsureFont()
@@ -408,7 +448,7 @@ namespace DiceVadersUltrawide
                 _boardLabel.SetAllDirty();
                 Canvas.ForceUpdateCanvases();
                 int vertices = _hudLabel.cachedTextGenerator.vertexCount;
-                Plugin.Instance.Log.LogInfo($"Menu opened: font={(_labelFont != null ? _labelFont.name : "missing")}, HUD text vertices={vertices}, size={_hudLabel.rectTransform.rect.size}");
+                Plugin.Instance.Log.LogInfo($"Menu opened: font={(_hudLabel.font != null ? _hudLabel.font.name : "missing")}, HUD text vertices={vertices}, size={_hudLabel.rectTransform.rect.size}");
                 if (vertices <= 4)
                     Plugin.Instance.Log.LogError("Mod menu text generated no visible geometry. Please include this log when reporting UI problems.");
             }
@@ -561,6 +601,7 @@ namespace DiceVadersUltrawide
             label.font = _labelFont;
             label.text = value;
             label.fontSize = (int)fontSize;
+            _baseTextSizes[label.GetInstanceID()] = (int)fontSize;
             label.fontStyle = FontStyle.Bold;
             label.alignment = TextAnchor.MiddleCenter;
             label.color = new Color(0.74f, 0.96f, 0.89f, 1);
