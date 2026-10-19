@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.3 - 2026-10-19 (prerelease)
+
+- Make decrease, increase, toggle, diagnostics, and menu shortcuts configurable in a Hotkeys config section.
+- Keep F6-F10 defaults; support None to disable an action.
+- Show the selected menu key in its footer.
+- Clarify that NorthernDale and GitHub moistman7 are the same mod author; update assembly author metadata.
+- Build verified; runtime verification pending.
+
+
 ## 0.5.2 - 2026-10-19 (prerelease)
 
 - Add the mod menu entry to the pause screen.

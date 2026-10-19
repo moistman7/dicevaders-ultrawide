@@ -44,9 +44,8 @@ namespace DiceVadersUltrawide
         {
             Restore();
             if (_hudScale == null) return;
-            var keyboard = Keyboard.current;
-            float step = keyboard != null && keyboard.f7Key.wasPressedThisFrame ? 0.02f :
-                keyboard != null && keyboard.f6Key.wasPressedThisFrame ? -0.02f : 0f;
+            float step = Hotkeys.Pressed(Hotkeys.Increase) ? 0.02f :
+                Hotkeys.Pressed(Hotkeys.Decrease) ? -0.02f : 0f;
             if (step != 0f)
             {
                 _hudScale.Value = Mathf.Clamp(_hudScale.Value + step, 1f, 1.35f);

@@ -13,7 +13,7 @@ using HarmonyLib;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.2")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.3")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;
@@ -29,6 +29,7 @@ namespace DiceVadersUltrawide
         public override void Load()
         {
             Instance = this;
+            Hotkeys.Bind(Config);
             Enabled = Config.Bind("General", "Enabled", true,
                 "Apply the ultrawide fix. F8 toggles it in game.");
             MatchValue = Config.Bind("General", "CanvasMatch", 1f,
@@ -50,7 +51,7 @@ namespace DiceVadersUltrawide
             AddComponent<HudSizing>();
             AddComponent<ModMenu>();
             new Harmony("local.dicevaders.ultrawide.scaling").PatchAll(typeof(CanvasScalingPatch));
-            Log.LogInfo("DiceVaders Ultrawide loaded. F8 = toggle fix, F9 = dump cameras/canvases to log.");
+            Log.LogInfo($"DiceVaders Ultrawide by NorthernDale loaded. Toggle = {Hotkeys.ToggleFix.Value}; diagnostics = {Hotkeys.Diagnostics.Value}; menu = {Hotkeys.Menu.Value}.");
         }
     }
 
@@ -78,13 +79,13 @@ namespace DiceVadersUltrawide
                 var kb = Keyboard.current;
                 if (kb != null)
                 {
-                    if (kb.f8Key.wasPressedThisFrame)
+                    if (Hotkeys.Pressed(Hotkeys.ToggleFix))
                     {
                         Plugin.Enabled.Value = !Plugin.Enabled.Value;
                         Plugin.Instance.Log.LogInfo("Fix enabled = " + Plugin.Enabled.Value);
                         _next = 0f;
                     }
-                    if (kb.f9Key.wasPressedThisFrame) Dump();
+                    if (Hotkeys.Pressed(Hotkeys.Diagnostics)) Dump();
                 }
 
                 ForceRes();

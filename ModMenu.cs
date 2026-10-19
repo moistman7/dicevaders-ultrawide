@@ -54,7 +54,7 @@ namespace DiceVadersUltrawide
                 _nextSearch = 0f;
             }
             var keyboard = Keyboard.current;
-            bool toggle = keyboard != null && keyboard.f10Key.wasPressedThisFrame;
+            bool toggle = Hotkeys.Pressed(Hotkeys.Menu);
             if (Time.unscaledTime >= _nextSearch || toggle)
             {
                 _nextSearch = Time.unscaledTime + 1f;
@@ -244,10 +244,10 @@ namespace DiceVadersUltrawide
                 Sync();
             });
             Button(frame.transform, "CLOSE", new Vector2(200, -200), new Vector2(300, 70), () => SetOpen(false));
-            Label(frame.transform, "Changes save automatically   /   F10 opens this panel", new Vector2(0, -280), new Vector2(850, 45), 22);
+            Label(frame.transform, $"Changes save automatically   /   Menu key: {Hotkeys.Menu.Value}", new Vector2(0, -280), new Vector2(850, 45), 22);
             Sync();
             _panel.SetActive(false);
-            Plugin.Instance.Log.LogInfo("Mod menu ready. F10 opens it anywhere; Settings and Pause also have an Ultrawide Mod entry.");
+            Plugin.Instance.Log.LogInfo($"Mod menu ready. {Hotkeys.Menu.Value} opens it anywhere; Settings and Pause also have an Ultrawide Mod entry.");
         }
 
         [HideFromIl2Cpp]

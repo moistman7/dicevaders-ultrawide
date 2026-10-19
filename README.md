@@ -1,8 +1,10 @@
 # DiceVaders Ultrawide
 
-BepInEx 6 IL2CPP plugin by NorthernDale. Adjusts Unity canvas scaling at wider-than-reference aspect ratios so the UI matches screen height. Includes optional startup resolution selection.
+Created and maintained by **NorthernDale** (**moistman7** on GitHub). This is my source repository for the DiceVaders Ultrawide mod published on Nexus Mods.
 
-Original mod: https://www.nexusmods.com/dicevaders/mods/1
+BepInEx 6 IL2CPP plugin. Adjusts Unity canvas scaling at wider-than-reference aspect ratios so the UI matches screen height. Includes optional startup resolution selection.
+
+My Nexus Mods page: https://www.nexusmods.com/dicevaders/mods/1
 
 ## Install
 
@@ -25,7 +27,7 @@ The download contains this plugin only. It does not include BepInEx, Unity, gene
 - `ScreenMode`: FullScreenWindow (default), ExclusiveFullScreen, MaximizedWindow, or Windowed. Invalid values fall back to FullScreenWindow.
 - `DelaySeconds` / `RetrySeconds`: default 2 / 15. Resolution retries run once per second during this startup window, then leave settings alone. Both values accept 0 to 120 seconds.
 
-Canvas discovery runs every 250 ms and original scaling is restored when disabling the fix or returning to a narrower aspect ratio. New scene canvases may take up to 250 ms to adjust.
+Canvas discovery runs every 250 ms and original scaling is restored when disabling the fix or returning to a narrower aspect ratio. A CanvasScaler hook also applies scaling before new canvases calculate their layout.
 
 ## Build
 
@@ -45,7 +47,9 @@ Before treating this as stable, check F8 restoration, tutorial placement, the bo
 
 ## Credits and permissions
 
-Original mod and source: NorthernDale. BepInEx and Il2CppInterop belong to their respective authors. Third-party components are referenced locally and are not redistributed. No additional source redistribution license is granted by this repository; contact the author for reuse permission.
+Mod author and maintainer: **NorthernDale** (GitHub: [moistman7](https://github.com/moistman7)). This is the author's own repository, not a third-party adaptation.
+
+BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. The plugin references these components locally and does not redistribute game assets.
 
 ## Optional UI sizing (0.5.0)
 
@@ -68,3 +72,28 @@ The panel reuses loaded native slider assets and the game's font. Before native 
 Labels now clone native text objects, using an unmasked font material and explicit shader channels. The open panel uses its own EventSystem and default Input System UI actions while the previous enabled EventSystems are suspended and restored on close. The pause screen now also exposes the menu entry. A Harmony prefix on CanvasScaler.HandleScaleWithScreenSize applies the ultrawide match before each canvas calculates its scale, including newly enabled canvases, instead of waiting for periodic discovery.
 
 These are targeted fixes for the reported blank menu and transition zoom. Compilation is verified, but their visual and interaction results still need confirmation in game.
+
+## Rebinding hotkeys (0.5.3)
+
+All keyboard bindings are configurable. Defaults are:
+
+| Action | Default |
+| --- | --- |
+| Decrease HUD and board size | F6 |
+| Increase HUD and board size | F7 |
+| Toggle fix | F8 |
+| Write diagnostics | F9 |
+| Open/close mod menu | F10 |
+
+Close the game and edit `BepInEx/config/local.dicevaders.ultrawide.cfg`. The `[Hotkeys]` section is generated when 0.5.3 first starts:
+
+```ini
+[Hotkeys]
+DecreaseSize = F6
+IncreaseSize = F7
+ToggleFix = F8
+Diagnostics = F9
+Menu = F10
+```
+
+Use Input System key names such as `F1`, `F12`, `PageUp`, `PageDown`, `Home`, or `End`. Set an action to `None` to disable its shortcut. Choose different keys for different actions. Bindings are single keys, without modifier combinations; rebinding is through the config file rather than a menu key-capture control. Restart to apply changes. The Settings and Pause menu entries remain available if the Menu shortcut is disabled.
