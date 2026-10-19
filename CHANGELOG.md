@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.4 - 2026-10-19 (prerelease)
+
+- Give the pause-menu entry a separate position above Game Menu, relative to the Resume button, instead of overlapping Resume and Options.
+- Preserve the working Settings entry and panel layout, saved sizes, and configurable hotkeys.
+- Build verified; pause-entry placement still needs an in-game visual check.
+
+
 ## 0.5.3 - 2026-10-19 (prerelease)
 
 - Make decrease, increase, toggle, diagnostics, and menu shortcuts configurable in a Hotkeys config section.

@@ -13,7 +13,7 @@ using HarmonyLib;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.3")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.4")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;

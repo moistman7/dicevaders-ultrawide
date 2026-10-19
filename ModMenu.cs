@@ -84,7 +84,10 @@ namespace DiceVadersUltrawide
                 }
             }
             if (_root == null) return;
-            _entry.SetActive((_settings != null && _settings.isActiveAndEnabled) || (_pause != null && _pause.IsPaused));
+            bool inSettings = _settings != null && _settings.isActiveAndEnabled;
+            bool inPause = _pause != null && _pause.IsPaused;
+            _entry.SetActive(inSettings || inPause);
+            PositionEntry(inSettings, inPause);
             var mouse = Mouse.current;
             if (!_panel.activeSelf && _entry.activeSelf && mouse != null && mouse.leftButton.wasPressedThisFrame &&
                 RectTransformUtility.RectangleContainsScreenPoint(_entry.GetComponent<RectTransform>(), mouse.position.ReadValue(), null))
@@ -95,6 +98,29 @@ namespace DiceVadersUltrawide
                 Sync();
                 if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetOpen(false);
             }
+        }
+
+        void PositionEntry(bool inSettings, bool inPause)
+        {
+            var entry = _entry.GetComponent<RectTransform>();
+            // Settings retains its existing placement. Pause gets its own row above
+            // the Game Menu header instead of overlapping Resume and Options.
+            entry.anchoredPosition = new Vector2(0, inSettings ? -470 : -230);
+            if (inSettings || !inPause || _pause.ResumeButton == null) return;
+            var resume = _pause.ResumeButton.GetComponent<RectTransform>();
+            if (resume == null) return;
+            var canvas = resume.GetComponentInParent<Canvas>();
+            var camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+            var corners = new Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppStructArray<Vector3>(4);
+            resume.GetWorldCorners(corners);
+            float top = float.MinValue;
+            foreach (var corner in corners)
+                top = Mathf.Max(top, RectTransformUtility.WorldToScreenPoint(camera, corner).y);
+            float scale = _root.GetComponent<Canvas>().scaleFactor;
+            float screenY = Mathf.Clamp(top + 130f * scale, 50f * scale, Screen.height - 50f * scale);
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(_root.GetComponent<RectTransform>(),
+                new Vector2(Screen.width * 0.5f, screenY), null, out Vector2 local))
+                entry.anchoredPosition = local;
         }
 
         void OnDestroy()
