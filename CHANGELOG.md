@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.6 - 2026-10-19 (prerelease)
+
+- Remove the Options-opening workaround: Pause and the menu hotkey open the standalone panel directly.
+- Replace cloned TMP labels with fresh Unity UI Text controls, using the game's source font when available and Arial as a fallback.
+- Reset cloned control depth and log menu text geometry on opening.
+- Add an opt-in startup smoke check for text generation and state restoration.
+- Preserve saved sizes, configurable hotkeys, and 123% defaults.
+- Startup runtime check generated 44 HUD-label vertices using StarvadersGun-Regular; closing restored timeScale to 1.
+
+
 ## 0.5.5 - 2026-10-19 (prerelease)
 
 - Style the pause entry using native Resume button artwork and font.

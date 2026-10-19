@@ -23,14 +23,14 @@ namespace DiceVadersUltrawide
         GameObject _panel;
         SettingsSceneController _settings;
         TMP_FontAsset _font;
-        Material _fontMaterial;
-        TextMeshProUGUI _textTemplate;
+        Font _labelFont;
+
         Sprite _buttonSprite;
         Slider _hud;
         Slider _board;
-        TextMeshProUGUI _hudLabel;
-        TextMeshProUGUI _boardLabel;
-        TextMeshProUGUI _enabledLabel;
+        Text _hudLabel;
+        Text _boardLabel;
+        Text _enabledLabel;
         float _nextSearch;
         bool _syncing;
         bool _nativeSliders;
@@ -44,7 +44,10 @@ namespace DiceVadersUltrawide
         GameObject _eventRoot;
         readonly List<EventSystem> _suspendedEvents = new();
         bool _settingsStyle;
-        bool _openWhenSettingsReady;
+        bool _smokeOpened;
+        float _smokeCloseAt;
+
+
 
         void Update()
         {
@@ -56,7 +59,8 @@ namespace DiceVadersUltrawide
                 _nextSearch = 0f;
             }
             var keyboard = Keyboard.current;
-            bool toggle = Hotkeys.Pressed(Hotkeys.Menu);
+            bool smoke = Environment.GetEnvironmentVariable("DICEVADERS_UW_MENU_TEST") == "1";
+            bool toggle = Hotkeys.Pressed(Hotkeys.Menu) || (smoke && !_smokeOpened && Time.unscaledTime > 5f && Time.unscaledTime >= _nextSearch);
             if (Time.unscaledTime >= _nextSearch || toggle)
             {
                 _nextSearch = Time.unscaledTime + 1f;
@@ -90,11 +94,7 @@ namespace DiceVadersUltrawide
             bool inPause = _pause != null && _pause.IsPaused;
             _entry.SetActive(inSettings || inPause);
             PositionEntry(inSettings, inPause);
-            if (_openWhenSettingsReady && inSettings)
-            {
-                _openWhenSettingsReady = false;
-                SetOpen(true);
-            }
+
             var mouse = Mouse.current;
             if (!_panel.activeSelf && _entry.activeSelf && mouse != null && mouse.leftButton.wasPressedThisFrame &&
                 RectTransformUtility.RectangleContainsScreenPoint(_entry.GetComponent<RectTransform>(), mouse.position.ReadValue(), null))
@@ -106,24 +106,24 @@ namespace DiceVadersUltrawide
             }
             if (_panel.activeSelf)
             {
+                if (smoke && !_smokeOpened)
+                {
+                    _smokeOpened = true;
+                    _smokeCloseAt = Time.unscaledTime + 2f;
+                }
                 Sync();
                 if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetOpen(false);
+                if (smoke && _smokeOpened && Time.unscaledTime >= _smokeCloseAt)
+                {
+                    SetOpen(false);
+                    _smokeCloseAt = float.PositiveInfinity;
+                    Plugin.Instance.Log.LogInfo($"Menu smoke test closed: restored timeScale={Time.timeScale}; previous EventSystems restored.");
+                }
             }
         }
 
         void OpenFromEntry()
         {
-            if (_panel.activeSelf) return;
-            if (_pause != null && _pause.IsPaused && (_settings == null || !_settings.isActiveAndEnabled))
-            {
-                if (_openWhenSettingsReady) return;
-                // Use the game's own Options flow so Pause gets the exact same
-                // native assets and backdrop as the working Settings panel.
-                _openWhenSettingsReady = true;
-                _nextSearch = 0f;
-                _pause.OnPressOptions();
-                return;
-            }
             SetOpen(true);
         }
 
@@ -134,11 +134,11 @@ namespace DiceVadersUltrawide
             // the Game Menu header instead of overlapping Resume and Options.
             entry.anchoredPosition = new Vector2(0, inSettings ? -470 : -230);
             var image = _entry.GetComponent<Image>();
-            var label = _entry.GetComponentInChildren<TextMeshProUGUI>();
+            var label = _entry.GetComponentInChildren<Text>();
             image.sprite = _buttonSprite;
             image.color = new Color(0.18f, 0.50f, 0.43f, 1);
-            label.font = _font;
-            label.fontSharedMaterial = _fontMaterial;
+            label.font = _labelFont;
+
             if (inSettings || !inPause || _pause.ResumeButton == null) return;
             foreach (var native in _pause.ResumeButton.GetComponentsInChildren<Image>(true))
             {
@@ -149,10 +149,10 @@ namespace DiceVadersUltrawide
                 break;
             }
             var nativeText = _pause.ResumeButton.GetComponentInChildren<TextMeshProUGUI>(true);
-            if (nativeText != null && nativeText.font != null)
+            if (nativeText != null && nativeText.font != null && nativeText.font.sourceFontFile != null)
             {
-                label.font = nativeText.font;
-                label.fontSharedMaterial = nativeText.font.material;
+                label.font = nativeText.font.sourceFontFile;
+
                 label.color = nativeText.color;
             }
             var resume = _pause.ResumeButton.GetComponent<RectTransform>();
@@ -175,7 +175,7 @@ namespace DiceVadersUltrawide
         {
             if (_panel != null && _panel.activeSelf) SetOpen(false);
             if (_root != null) UnityEngine.Object.Destroy(_root);
-            if (_fontMaterial != null) UnityEngine.Object.Destroy(_fontMaterial);
+
         }
 
         void SetOpen(bool open)
@@ -220,6 +220,17 @@ namespace DiceVadersUltrawide
                 _suspendedEvents.Clear();
             }
             _panel.SetActive(open);
+            if (open)
+            {
+                Canvas.ForceUpdateCanvases();
+                _hudLabel.SetAllDirty();
+                _boardLabel.SetAllDirty();
+                Canvas.ForceUpdateCanvases();
+                int vertices = _hudLabel.cachedTextGenerator.vertexCount;
+                Plugin.Instance.Log.LogInfo($"Menu opened: font={_labelFont.name}, HUD text vertices={vertices}, size={_hudLabel.rectTransform.rect.size}");
+                if (vertices <= 4)
+                    Plugin.Instance.Log.LogError("Mod menu text generated no visible geometry. Please include this log when reporting UI problems.");
+            }
         }
 
         static RectTransform Rect(GameObject obj, Transform parent, Vector2 size, Vector2 position)
@@ -230,6 +241,8 @@ namespace DiceVadersUltrawide
             rect.pivot = new Vector2(0.5f, 0.5f);
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
+            var anchored = rect.anchoredPosition3D;
+            rect.anchoredPosition3D = new Vector3(anchored.x, anchored.y, 0f);
             rect.localScale = Vector3.one;
             rect.localRotation = Quaternion.identity;
             return rect;
@@ -249,14 +262,8 @@ namespace DiceVadersUltrawide
                     if (candidate.font != null) { text = candidate; break; }
             if (text == null) throw new InvalidOperationException("Waiting for the game's UI font to load.");
             _font = text.font;
-            _textTemplate = text;
-            // A scene label's material may carry a stencil mask from its original canvas.
-            _fontMaterial = new Material(_font.material);
-            if (_fontMaterial.HasProperty("_StencilComp")) _fontMaterial.SetFloat("_StencilComp", 8f);
-            if (_fontMaterial.HasProperty("_Stencil")) _fontMaterial.SetFloat("_Stencil", 0f);
-            if (_fontMaterial.HasProperty("_ColorMask")) _fontMaterial.SetFloat("_ColorMask", 15f);
-            _fontMaterial.DisableKeyword("UNITY_UI_CLIP_RECT");
-            _fontMaterial.DisableKeyword("UNITY_UI_ALPHACLIP");
+            _labelFont = _font.sourceFontFile;
+            if (_labelFont == null || !_labelFont.HasCharacter('H')) _labelFont = Font.CreateDynamicFontFromOSFont("Arial", 32);
             var image = source != null ? source.GetComponentInChildren<Image>(true) : null;
             _buttonSprite = image != null ? image.sprite : null;
 
@@ -301,7 +308,7 @@ namespace DiceVadersUltrawide
             {
                 Plugin.Enabled.Value = !Plugin.Enabled.Value;
                 Sync();
-            }).GetComponentInChildren<TextMeshProUGUI>();
+            }).GetComponentInChildren<Text>();
             _hudLabel = Label(frame.transform, "HUD SIZE", new Vector2(0, 90), new Vector2(760, 50), 30);
             _hud = MakeSlider(source, frame.transform, new Vector2(0, 35), value =>
             {
@@ -375,41 +382,24 @@ namespace DiceVadersUltrawide
             return slider;
         }
 
-        TextMeshProUGUI Label(Transform parent, string value, Vector2 position, Vector2 size, float fontSize)
+        Text Label(Transform parent, string value, Vector2 position, Vector2 size, float fontSize)
         {
-            var staging = new GameObject("TextStaging");
-            staging.SetActive(false);
-            var obj = UnityEngine.Object.Instantiate(_textTemplate.gameObject, staging.transform);
-            obj.SetActive(false);
-            obj.name = "ModLabel";
-            var label = obj.GetComponent<TextMeshProUGUI>();
-            foreach (var behaviour in obj.GetComponents<MonoBehaviour>())
-                if (behaviour != label) behaviour.enabled = false;
-            foreach (var graphic in obj.GetComponents<Graphic>())
-                if (graphic != label) graphic.enabled = false;
-            for (int i = obj.transform.childCount - 1; i >= 0; i--)
-                UnityEngine.Object.Destroy(obj.transform.GetChild(i).gameObject);
-            var group = obj.GetComponent<CanvasGroup>();
-            if (group != null) group.alpha = 1f;
+            var obj = new GameObject("ModLabel");
             Rect(obj, parent, size, position);
-            UnityEngine.Object.Destroy(staging);
-            label.font = _font;
-            label.fontSharedMaterial = _fontMaterial;
+            var label = obj.AddComponent<Text>();
+            label.font = _labelFont;
             label.text = value;
-            label.fontSize = fontSize;
-            label.alignment = TextAlignmentOptions.Center;
+            label.fontSize = (int)fontSize;
+            label.fontStyle = FontStyle.Bold;
+            label.alignment = TextAnchor.MiddleCenter;
             label.color = new Color(0.74f, 0.96f, 0.89f, 1);
             label.raycastTarget = false;
             label.maskable = false;
-            label.enableAutoSizing = false;
-            label.overflowMode = TextOverflowModes.Overflow;
-            label.enabled = true;
-            obj.SetActive(true);
-            label.canvasRenderer.cull = false;
-            label.ForceMeshUpdate(true, true);
+            label.horizontalOverflow = HorizontalWrapMode.Overflow;
+            label.verticalOverflow = VerticalWrapMode.Overflow;
+            label.canvasRenderer.SetAlpha(1f);
             return label;
         }
-
         [HideFromIl2Cpp]
         GameObject Button(Transform parent, string value, Vector2 position, Vector2 size, Action clicked)
         {
