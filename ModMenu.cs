@@ -7,6 +7,10 @@ using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
+using UnityEngine.InputSystem.UI;
+using StarVaders.PauseMenu;
+using Il2CppInterop.Runtime.Attributes;
 
 namespace DiceVadersUltrawide
 {
@@ -20,6 +24,7 @@ namespace DiceVadersUltrawide
         SettingsSceneController _settings;
         TMP_FontAsset _font;
         Material _fontMaterial;
+        TextMeshProUGUI _textTemplate;
         Sprite _buttonSprite;
         Slider _hud;
         Slider _board;
@@ -35,6 +40,9 @@ namespace DiceVadersUltrawide
         bool _previousCursorVisible;
         CursorLockMode _previousCursorLock;
         int _scene;
+        PauseMenuController _pause;
+        GameObject _eventRoot;
+        readonly List<EventSystem> _suspendedEvents = new();
 
         void Update()
         {
@@ -51,6 +59,9 @@ namespace DiceVadersUltrawide
             {
                 _nextSearch = Time.unscaledTime + 1f;
                 _settings = null;
+                _pause = null;
+                foreach (var pause in UnityEngine.Object.FindObjectsByType<PauseMenuController>(FindObjectsSortMode.None))
+                    if (pause.IsPaused) { _pause = pause; break; }
                 foreach (var settings in UnityEngine.Object.FindObjectsByType<SettingsSceneController>(FindObjectsSortMode.None))
                 {
                     if (settings.isActiveAndEnabled) { _settings = settings; break; }
@@ -60,7 +71,7 @@ namespace DiceVadersUltrawide
                     UnityEngine.Object.Destroy(_root);
                     _root = null;
                 }
-                if (_root == null && HudSizing._hudScale != null && (_settings != null || toggle))
+                if (_root == null && HudSizing._hudScale != null && (_settings != null || _pause != null || toggle))
                 {
                     try { Build(_settings); }
                     catch (Exception error)
@@ -73,7 +84,11 @@ namespace DiceVadersUltrawide
                 }
             }
             if (_root == null) return;
-            _entry.SetActive(_settings != null && _settings.isActiveAndEnabled);
+            _entry.SetActive((_settings != null && _settings.isActiveAndEnabled) || (_pause != null && _pause.IsPaused));
+            var mouse = Mouse.current;
+            if (!_panel.activeSelf && _entry.activeSelf && mouse != null && mouse.leftButton.wasPressedThisFrame &&
+                RectTransformUtility.RectangleContainsScreenPoint(_entry.GetComponent<RectTransform>(), mouse.position.ReadValue(), null))
+                SetOpen(true);
             if (toggle) SetOpen(!_panel.activeSelf);
             if (_panel.activeSelf)
             {
@@ -86,6 +101,7 @@ namespace DiceVadersUltrawide
         {
             if (_panel != null && _panel.activeSelf) SetOpen(false);
             if (_root != null) UnityEngine.Object.Destroy(_root);
+            if (_fontMaterial != null) UnityEngine.Object.Destroy(_fontMaterial);
         }
 
         void SetOpen(bool open)
@@ -108,6 +124,10 @@ namespace DiceVadersUltrawide
                     }
                 }
                 Time.timeScale = 0f;
+                _suspendedEvents.Clear();
+                foreach (var events in UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None))
+                    if (events.enabled) { events.enabled = false; _suspendedEvents.Add(events); }
+                _eventRoot.SetActive(true);
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
                 Sync();
@@ -120,6 +140,10 @@ namespace DiceVadersUltrawide
                 foreach (var behaviour in _suspendedInput)
                     if (behaviour != null) behaviour.enabled = true;
                 _suspendedInput.Clear();
+                _eventRoot.SetActive(false);
+                foreach (var events in _suspendedEvents)
+                    if (events != null) events.enabled = true;
+                _suspendedEvents.Clear();
             }
             _panel.SetActive(open);
         }
@@ -133,6 +157,7 @@ namespace DiceVadersUltrawide
             rect.sizeDelta = size;
             rect.anchoredPosition = position;
             rect.localScale = Vector3.one;
+            rect.localRotation = Quaternion.identity;
             return rect;
         }
 
@@ -149,7 +174,14 @@ namespace DiceVadersUltrawide
                     if (candidate.font != null) { text = candidate; break; }
             if (text == null) throw new InvalidOperationException("Waiting for the game's UI font to load.");
             _font = text.font;
-            _fontMaterial = text.fontSharedMaterial;
+            _textTemplate = text;
+            // A scene label's material may carry a stencil mask from its original canvas.
+            _fontMaterial = new Material(_font.material);
+            if (_fontMaterial.HasProperty("_StencilComp")) _fontMaterial.SetFloat("_StencilComp", 8f);
+            if (_fontMaterial.HasProperty("_Stencil")) _fontMaterial.SetFloat("_Stencil", 0f);
+            if (_fontMaterial.HasProperty("_ColorMask")) _fontMaterial.SetFloat("_ColorMask", 15f);
+            _fontMaterial.DisableKeyword("UNITY_UI_CLIP_RECT");
+            _fontMaterial.DisableKeyword("UNITY_UI_ALPHACLIP");
             var image = source != null ? source.GetComponentInChildren<Image>(true) : null;
             _buttonSprite = image != null ? image.sprite : null;
 
@@ -158,11 +190,18 @@ namespace DiceVadersUltrawide
             var canvas = _root.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 30000;
+            canvas.additionalShaderChannels = AdditionalCanvasShaderChannels.TexCoord1 | AdditionalCanvasShaderChannels.TexCoord2 |
+                AdditionalCanvasShaderChannels.Normal | AdditionalCanvasShaderChannels.Tangent;
             var scaler = _root.AddComponent<CanvasScaler>();
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 1f;
             _root.AddComponent<GraphicRaycaster>();
+            _eventRoot = new GameObject("ModMenuInput");
+            _eventRoot.SetActive(false);
+            _eventRoot.transform.SetParent(_root.transform, false);
+            _eventRoot.AddComponent<EventSystem>();
+            _eventRoot.AddComponent<InputSystemUIInputModule>().AssignDefaultActions();
 
             _entry = Button(_root.transform, "ULTRAWIDE MOD", new Vector2(0, -470), new Vector2(360, 66), () =>
             {
@@ -208,9 +247,10 @@ namespace DiceVadersUltrawide
             Label(frame.transform, "Changes save automatically   /   F10 opens this panel", new Vector2(0, -280), new Vector2(850, 45), 22);
             Sync();
             _panel.SetActive(false);
-            Plugin.Instance.Log.LogInfo("Mod menu ready. F10 opens it anywhere; Settings also has an Ultrawide Mod entry.");
+            Plugin.Instance.Log.LogInfo("Mod menu ready. F10 opens it anywhere; Settings and Pause also have an Ultrawide Mod entry.");
         }
 
+        [HideFromIl2Cpp]
         Slider MakeSlider(Slider source, Transform parent, Vector2 position, Action<float> changed)
         {
             if (source == null) return MakeFallbackSlider(parent, position, changed);
@@ -237,6 +277,7 @@ namespace DiceVadersUltrawide
             return slider;
         }
 
+        [HideFromIl2Cpp]
         Slider MakeFallbackSlider(Transform parent, Vector2 position, Action<float> changed)
         {
             var obj = new GameObject("SizeSlider");
@@ -261,9 +302,22 @@ namespace DiceVadersUltrawide
 
         TextMeshProUGUI Label(Transform parent, string value, Vector2 position, Vector2 size, float fontSize)
         {
-            var obj = new GameObject("Label");
+            var staging = new GameObject("TextStaging");
+            staging.SetActive(false);
+            var obj = UnityEngine.Object.Instantiate(_textTemplate.gameObject, staging.transform);
+            obj.SetActive(false);
+            obj.name = "ModLabel";
+            var label = obj.GetComponent<TextMeshProUGUI>();
+            foreach (var behaviour in obj.GetComponents<MonoBehaviour>())
+                if (behaviour != label) behaviour.enabled = false;
+            foreach (var graphic in obj.GetComponents<Graphic>())
+                if (graphic != label) graphic.enabled = false;
+            for (int i = obj.transform.childCount - 1; i >= 0; i--)
+                UnityEngine.Object.Destroy(obj.transform.GetChild(i).gameObject);
+            var group = obj.GetComponent<CanvasGroup>();
+            if (group != null) group.alpha = 1f;
             Rect(obj, parent, size, position);
-            var label = obj.AddComponent<TextMeshProUGUI>();
+            UnityEngine.Object.Destroy(staging);
             label.font = _font;
             label.fontSharedMaterial = _fontMaterial;
             label.text = value;
@@ -271,9 +325,17 @@ namespace DiceVadersUltrawide
             label.alignment = TextAlignmentOptions.Center;
             label.color = new Color(0.74f, 0.96f, 0.89f, 1);
             label.raycastTarget = false;
+            label.maskable = false;
+            label.enableAutoSizing = false;
+            label.overflowMode = TextOverflowModes.Overflow;
+            label.enabled = true;
+            obj.SetActive(true);
+            label.canvasRenderer.cull = false;
+            label.ForceMeshUpdate(true, true);
             return label;
         }
 
+        [HideFromIl2Cpp]
         GameObject Button(Transform parent, string value, Vector2 position, Vector2 size, Action clicked)
         {
             var obj = new GameObject(value.Length == 0 ? "EnableFix" : value);

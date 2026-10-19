@@ -9,10 +9,11 @@ using Il2CppInterop.Runtime.Injection;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using HarmonyLib;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.1")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.2")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;
@@ -48,6 +49,7 @@ namespace DiceVadersUltrawide
             AddComponent<UwBehaviour>();
             AddComponent<HudSizing>();
             AddComponent<ModMenu>();
+            new Harmony("local.dicevaders.ultrawide.scaling").PatchAll(typeof(CanvasScalingPatch));
             Log.LogInfo("DiceVaders Ultrawide loaded. F8 = toggle fix, F9 = dump cameras/canvases to log.");
         }
     }
@@ -133,9 +135,16 @@ namespace DiceVadersUltrawide
             var scalers = UnityEngine.Object.FindObjectsByType<CanvasScaler>(FindObjectsSortMode.None);
             foreach (var s in scalers)
             {
-                if (s == null) continue;
-                if (s.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize) continue;
-                if (s.screenMatchMode != CanvasScaler.ScreenMatchMode.MatchWidthOrHeight) continue;
+                ApplyScaler(s);
+            }
+        }
+
+        internal static void ApplyScaler(CanvasScaler s)
+        {
+                if (s == null || Screen.height <= 0 || Plugin.Enabled == null) return;
+                if (s.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize) return;
+                if (s.screenMatchMode != CanvasScaler.ScreenMatchMode.MatchWidthOrHeight) return;
+                float aspect = (float)Screen.width / Screen.height;
 
                 int id = s.GetInstanceID();
                 var rr = s.referenceResolution;
@@ -154,7 +163,6 @@ namespace DiceVadersUltrawide
                     if (orig.Scaler == s) s.matchWidthOrHeight = orig.Match;
                     Original.Remove(id);
                 }
-            }
         }
 
         static void Dump()
@@ -183,5 +191,11 @@ namespace DiceVadersUltrawide
             }
             log.LogInfo(sb.ToString());
         }
+    }
+
+    [HarmonyPatch(typeof(CanvasScaler), nameof(CanvasScaler.HandleScaleWithScreenSize))]
+    internal static class CanvasScalingPatch
+    {
+        static void Prefix(CanvasScaler __instance) => UwBehaviour.ApplyScaler(__instance);
     }
 }

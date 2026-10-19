@@ -55,10 +55,16 @@ Set `Interface/HudScale` and `Interface/BoardScale` independently in the configu
 
 Enlargement remains experimental. Screen-edge correction applies only to supported RectTransform holders; larger sizes can crowd panels or clip artwork. Visual placement, animation, and input still need in-game testing.
 
-## Mod menu (0.5.1)
+## Mod menu (0.5.2)
 
-Press **F10** to open or close the menu from gameplay or other game screens. You can also open Settings and click **ULTRAWIDE MOD** at the bottom. Escape or Close dismisses the panel. Separate HUD and board sliders cover 100-135%; Reset restores 123%. Changes save immediately.
+Press **F10** to open or close the menu from gameplay or other game screens. You can also open Settings or pause the game and click **ULTRAWIDE MOD** at the bottom. Escape or Close dismisses the panel. Separate HUD and board sliders cover 100-135%; Reset restores 123%. Changes save immediately.
 
 The overlay survives scene loads and closes on a scene change. Opening saves the current Unity time scale and cursor state, pauses the game clock, and suspends enabled StarVaders input-handler and key-controller components. Closing restores their prior states, including an already-paused clock. This does not stop coroutines driven by real time; pause and input behavior still require runtime checks.
 
 The panel reuses loaded native slider assets and the game's font. Before native slider assets have loaded, it provides simple sliders using the same font; visiting Settings upgrades the style when the panel is closed. The game UI font must finish loading before the panel can be created. F6/F7 and F8 remain available. Controller navigation, pointer interactions, scene transitions, and exact visual placement are not yet verified in game.
+
+### Menu rendering and transition fixes (0.5.2)
+
+Labels now clone native text objects, using an unmasked font material and explicit shader channels. The open panel uses its own EventSystem and default Input System UI actions while the previous enabled EventSystems are suspended and restored on close. The pause screen now also exposes the menu entry. A Harmony prefix on CanvasScaler.HandleScaleWithScreenSize applies the ultrawide match before each canvas calculates its scale, including newly enabled canvases, instead of waiting for periodic discovery.
+
+These are targeted fixes for the reported blank menu and transition zoom. Compilation is verified, but their visual and interaction results still need confirmation in game.

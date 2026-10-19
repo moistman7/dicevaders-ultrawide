@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.2 - 2026-10-19 (prerelease)
+
+- Add the mod menu entry to the pause screen.
+- Clone native labels with an unmasked font material and explicit canvas shader channels to address blank text.
+- Give the open menu independent UI input, restoring previous EventSystems on close.
+- Hide managed-only helper signatures from IL2CPP injection.
+- Apply ultrawide scaling before each CanvasScaler height/width calculation to address scene-transition zoom.
+- Keep saved sizes and 123% defaults.
+- Build verified; runtime confirmation pending.
+
+
 ## 0.5.1 - 2026-10-19 (prerelease)
 
 - Make F10 available outside Settings, including before Settings has been visited.
