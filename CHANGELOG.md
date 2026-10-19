@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 - 2026-10-19 (prerelease)
+
+- Restore optional HUD and board sizing with F6/F7 controls.
+- Default both multipliers to 100% to preserve the original appearance.
+- Keep independently configurable sizes and F8 restoration.
+- Build verified; runtime validation pending.
+
+
 ## 0.4.0 - 2026-10-19 (prerelease)
 
 - Remove experimental panel and board enlargement to preserve the original game's UI proportions.
