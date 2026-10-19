@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.3 - 2026-10-19 (prerelease)
+
+- Match the pause entry and panel to Resume's native source font.
+- Match the Settings entry and body/buttons to Apply & Exit's source font, with the Settings heading font for the panel title.
+- Own protected copies of native Font objects instead of borrowing scene-owned source objects; retain Arial as fallback when a source font is unavailable.
+- Add an opt-in font-copy lifecycle check across unused-asset unloading; the loaded native font passed it, and button raycast/callback checks passed.
+- Preserve layout, controls, hotkeys, and saved sizes.
+
+
 ## 0.6.2 - 2026-10-19 (prerelease)
 
 - Hide the mod entry immediately when Options SaveAndExit starts and when Settings disables.

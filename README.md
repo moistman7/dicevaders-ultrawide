@@ -88,3 +88,5 @@ Button hit targets (0.6.1): buttons use transparent standard Unity Images for mo
 0.6.1 verification: after waiting two UI layout frames, Toggle, Reset, and Close were each the top raycast target and their native pointer-click callbacks passed. The check restores the previous enable state and HUD/board values. This tests the shared panel logic used by Settings and Pause; it does not verify styling visually.
 
 Options exit timing (0.6.2): SaveAndExit and OnDisable hide the entry directly. The entry stays suppressed while the closing Settings controller remains active during its transition, rather than reappearing through periodic discovery. Reopening Settings clears the closing state.
+
+Contextual fonts (0.6.3): Pause uses an owned copy of the native Resume label's source font. Settings uses an owned copy of Apply & Exit's source font for the entry and panel body, plus the Settings heading font for the title. Native copies use their regular style to avoid adding synthetic bold weight. Arial remains the fallback when a source font is unavailable. DICEVADERS_UW_FONT_TEST=1, together with the startup smoke flag, validates copied fonts after unused-asset unloading.

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using StarVaders;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
@@ -61,6 +62,9 @@ namespace DiceVadersUltrawide
         SettingsSceneController _closingSettings;
 
         Font _labelFont;
+        readonly MenuFonts _fonts = new();
+        Font _settingsFont, _settingsTitleFont, _pauseFont;
+        Text _titleLabel;
 
 
         Slider _hud;
@@ -85,6 +89,7 @@ namespace DiceVadersUltrawide
         float _smokeCloseAt;
         bool _captureStarted;
         bool _buttonTestDone;
+        bool _fontTestDone;
 
 
 
@@ -153,6 +158,11 @@ namespace DiceVadersUltrawide
                     _smokeCloseAt = Time.unscaledTime + 2f;
                 }
                 Sync();
+                if (smoke && !_fontTestDone && Environment.GetEnvironmentVariable("DICEVADERS_UW_FONT_TEST") == "1")
+                {
+                    _fontTestDone = true;
+                    StartCoroutine(TestFontsAfterUnload().WrapToIl2Cpp());
+                }
                 if (smoke && !_buttonTestDone && Environment.GetEnvironmentVariable("DICEVADERS_UW_BUTTON_TEST") == "1")
                 {
                     _buttonTestDone = true;
@@ -172,6 +182,24 @@ namespace DiceVadersUltrawide
                     Plugin.Instance.Log.LogInfo($"Menu smoke test closed: restored timeScale={Time.timeScale}; previous EventSystems restored.");
                 }
             }
+        }
+
+        [HideFromIl2Cpp]
+        System.Collections.IEnumerator TestFontsAfterUnload()
+        {
+            var copies = new List<Font>();
+            foreach (var label in Resources.FindObjectsOfTypeAll<TextMeshProUGUI>())
+            {
+                var copy = _fonts.Copy(label);
+                if (copy != null && !copies.Contains(copy)) copies.Add(copy);
+            }
+            yield return Resources.UnloadUnusedAssets();
+            int alive = 0;
+            foreach (var font in copies)
+                if (font != null && font.HasCharacter('U')) alive++;
+            if (copies.Count > 0 && alive == copies.Count)
+                Plugin.Instance.Log.LogInfo($"FONT TEST PASS: {alive} copied native fonts retained their glyphs after unused-asset unloading.");
+            else Plugin.Instance.Log.LogError($"FONT TEST FAIL: {alive}/{copies.Count} copied native fonts available after unloading.");
         }
 
         [HideFromIl2Cpp]
@@ -255,6 +283,11 @@ namespace DiceVadersUltrawide
 
         void PositionEntry(bool inSettings, bool inPause)
         {
+            CaptureFonts(inSettings, inPause);
+            Font font = inSettings ? _settingsFont : _pauseFont;
+            var entryLabel = _entry.GetComponentInChildren<Text>();
+            entryLabel.font = font != null ? font : _labelFont;
+            entryLabel.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
             var entry = _entry.GetComponent<RectTransform>();
             // Settings retains its existing placement. Pause gets its own row above
             // the Game Menu header instead of overlapping Resume and Options.
@@ -282,6 +315,36 @@ namespace DiceVadersUltrawide
             if (_panel != null && _panel.activeSelf) SetOpen(false);
             if (_root != null) UnityEngine.Object.Destroy(_root);
             if (_labelFont != null) UnityEngine.Object.Destroy(_labelFont);
+            _fonts.Clear();
+        }
+
+        void CaptureFonts(bool settings, bool pause)
+        {
+            if (settings && _settings != null)
+            {
+                if (_settingsFont == null && _settings.ApplyButton != null)
+                    _settingsFont = _fonts.Copy(_settings.ApplyButton.GetComponentInChildren<TextMeshProUGUI>(true));
+                if (_settingsTitleFont == null)
+                    foreach (var label in _settings.GetComponentsInChildren<TextMeshProUGUI>(true))
+                        if (label.text != null && label.text.ToUpperInvariant().Contains("OPTIONS"))
+                        { _settingsTitleFont = _fonts.Copy(label); break; }
+            }
+            if (pause && _pause != null && _pauseFont == null && _pause.ResumeButton != null)
+                _pauseFont = _fonts.Copy(_pause.ResumeButton.GetComponentInChildren<TextMeshProUGUI>(true));
+        }
+
+        void ApplyPanelFonts()
+        {
+            bool settings = _settings != null && _settings.isActiveAndEnabled;
+            CaptureFonts(settings, _pause != null);
+            Font body = settings ? _settingsFont : _pauseFont;
+            Font title = settings ? _settingsTitleFont : _pauseFont;
+            foreach (var label in _panel.GetComponentsInChildren<Text>(true))
+            {
+                var font = label == _titleLabel ? title : body;
+                label.font = font != null ? font : _labelFont;
+                label.fontStyle = font != null ? FontStyle.Normal : FontStyle.Bold;
+            }
         }
 
         void EnsureFont()
@@ -300,6 +363,7 @@ namespace DiceVadersUltrawide
             if (open)
             {
                 EnsureFont();
+                ApplyPanelFonts();
                 _previousTimeScale = Time.timeScale;
                 _previousCursorVisible = Cursor.visible;
                 _previousCursorLock = Cursor.lockState;
@@ -405,7 +469,7 @@ namespace DiceVadersUltrawide
             background.Top = 0.82f;
             background.Slant = 20f;
             background.color = new Color(0.075f, 0.18f, 0.21f, 1f);
-            Label(frame.transform, "ULTRAWIDE MOD", new Vector2(0, 270), new Vector2(800, 70), 42);
+            _titleLabel = Label(frame.transform, "ULTRAWIDE MOD", new Vector2(0, 270), new Vector2(800, 70), 42);
             _enabledLabel = Button(frame.transform, "", new Vector2(0, 170), new Vector2(620, 65), () =>
             {
                 Plugin.Enabled.Value = !Plugin.Enabled.Value;
