@@ -55,8 +55,10 @@ Set `Interface/HudScale` and `Interface/BoardScale` independently in the configu
 
 Enlargement remains experimental. Screen-edge correction applies only to supported RectTransform holders; larger sizes can crowd panels or clip artwork. Visual placement, animation, and input still need in-game testing.
 
-## Mod menu
+## Mod menu (0.5.1)
 
-Open the game's Settings screen, then click **ULTRAWIDE MOD** at the bottom, or press **F10** while Settings is visible. The panel uses the game's actual slider artwork and font, with separate HUD and board sliders (100–135%), an ultrawide enable button, **Reset to 123%**, and Close. Changes save immediately; no Apply action is required. Escape closes the panel (the game's own Escape handler may also exit Settings).
+Press **F10** to open or close the menu from gameplay or other game screens. You can also open Settings and click **ULTRAWIDE MOD** at the bottom. Escape or Close dismisses the panel. Separate HUD and board sliders cover 100-135%; Reset restores 123%. Changes save immediately.
 
-The menu exists only while Settings is visible and does not introduce a second pause system. Existing F6/F7 and F8 shortcuts remain available. Menu pointer interactions, navigation, and visual layout require in-game testing; controller navigation is not yet verified. Native controls are cloned with fresh events, and game scripts on slider clones are disabled so they cannot change audio settings.
+The overlay survives scene loads and closes on a scene change. Opening saves the current Unity time scale and cursor state, pauses the game clock, and suspends enabled StarVaders input-handler and key-controller components. Closing restores their prior states, including an already-paused clock. This does not stop coroutines driven by real time; pause and input behavior still require runtime checks.
+
+The panel reuses loaded native slider assets and the game's font. Before native slider assets have loaded, it provides simple sliders using the same font; visiting Settings upgrades the style when the panel is closed. The game UI font must finish loading before the panel can be created. F6/F7 and F8 remain available. Controller navigation, pointer interactions, scene transitions, and exact visual placement are not yet verified in game.

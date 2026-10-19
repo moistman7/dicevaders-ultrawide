@@ -12,7 +12,7 @@ using UnityEngine.UI;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.0")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.5.1")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;

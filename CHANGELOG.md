@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.1 - 2026-10-19 (prerelease)
+
+- Make F10 available outside Settings, including before Settings has been visited.
+- Keep the Ultrawide Mod entry in Settings.
+- Preserve the overlay across scenes and close it on scene changes.
+- Save and restore Unity time scale, cursor state, and suspended game input handlers.
+- Provide fallback sliders until native settings assets become available.
+- Keep 123% defaults and existing saved preferences.
+- Build verified; runtime pause/input and UI verification pending.
+
+
 ## 0.5.0 - 2026-10-19 (prerelease)
 
 - Save the chosen 123% HUD and board sizing as defaults for new configurations.

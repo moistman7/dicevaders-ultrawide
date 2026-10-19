@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using StarVaders;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 namespace DiceVadersUltrawide
 {
@@ -26,22 +28,41 @@ namespace DiceVadersUltrawide
         TextMeshProUGUI _enabledLabel;
         float _nextSearch;
         bool _syncing;
+        bool _nativeSliders;
+        GameObject _entry;
+        readonly List<MonoBehaviour> _suspendedInput = new();
+        float _previousTimeScale;
+        bool _previousCursorVisible;
+        CursorLockMode _previousCursorLock;
+        int _scene;
 
         void Update()
         {
-            if (_root != null && (_settings == null || !_settings.gameObject.activeInHierarchy))
+            int scene = SceneManager.GetActiveScene().handle;
+            if (_scene != scene)
             {
-                UnityEngine.Object.Destroy(_root);
-                _root = null;
-                _panel = null;
+                if (_panel != null && _panel.activeSelf) SetOpen(false);
+                _scene = scene;
+                _nextSearch = 0f;
             }
-            if (_root == null && Time.unscaledTime >= _nextSearch)
+            var keyboard = Keyboard.current;
+            bool toggle = keyboard != null && keyboard.f10Key.wasPressedThisFrame;
+            if (Time.unscaledTime >= _nextSearch || toggle)
             {
                 _nextSearch = Time.unscaledTime + 1f;
+                _settings = null;
                 foreach (var settings in UnityEngine.Object.FindObjectsByType<SettingsSceneController>(FindObjectsSortMode.None))
                 {
-                    if (settings.MasterVolumeSlider == null || HudSizing._hudScale == null) continue;
-                    try { Build(settings); }
+                    if (settings.isActiveAndEnabled) { _settings = settings; break; }
+                }
+                if (_root != null && !_nativeSliders && !_panel.activeSelf && _settings != null && _settings.MasterVolumeSlider != null)
+                {
+                    UnityEngine.Object.Destroy(_root);
+                    _root = null;
+                }
+                if (_root == null && HudSizing._hudScale != null && (_settings != null || toggle))
+                {
+                    try { Build(_settings); }
                     catch (Exception error)
                     {
                         Plugin.Instance.Log.LogError("Mod menu creation failed: " + error);
@@ -49,23 +70,58 @@ namespace DiceVadersUltrawide
                         _root = null;
                         _nextSearch = Time.unscaledTime + 10f;
                     }
-                    break;
                 }
             }
             if (_root == null) return;
-            var keyboard = Keyboard.current;
-            if (keyboard != null && keyboard.f10Key.wasPressedThisFrame)
-                _panel.SetActive(!_panel.activeSelf);
+            _entry.SetActive(_settings != null && _settings.isActiveAndEnabled);
+            if (toggle) SetOpen(!_panel.activeSelf);
             if (_panel.activeSelf)
             {
                 Sync();
-                if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) _panel.SetActive(false);
+                if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetOpen(false);
             }
         }
 
         void OnDestroy()
         {
+            if (_panel != null && _panel.activeSelf) SetOpen(false);
             if (_root != null) UnityEngine.Object.Destroy(_root);
+        }
+
+        void SetOpen(bool open)
+        {
+            if (_panel == null || _panel.activeSelf == open) return;
+            if (open)
+            {
+                _previousTimeScale = Time.timeScale;
+                _previousCursorVisible = Cursor.visible;
+                _previousCursorLock = Cursor.lockState;
+                _suspendedInput.Clear();
+                foreach (var behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+                {
+                    var type = behaviour.GetIl2CppType();
+                    if (behaviour.enabled && type.Namespace != null && type.Namespace.StartsWith("StarVaders") &&
+                        (type.Name.Contains("InputHandler") || type.Name.Contains("KeyInputController")))
+                    {
+                        behaviour.enabled = false;
+                        _suspendedInput.Add(behaviour);
+                    }
+                }
+                Time.timeScale = 0f;
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                Sync();
+            }
+            else
+            {
+                Time.timeScale = _previousTimeScale;
+                Cursor.lockState = _previousCursorLock;
+                Cursor.visible = _previousCursorVisible;
+                foreach (var behaviour in _suspendedInput)
+                    if (behaviour != null) behaviour.enabled = true;
+                _suspendedInput.Clear();
+            }
+            _panel.SetActive(open);
         }
 
         static RectTransform Rect(GameObject obj, Transform parent, Vector2 size, Vector2 position)
@@ -82,16 +138,23 @@ namespace DiceVadersUltrawide
 
         void Build(SettingsSceneController settings)
         {
-            _settings = settings;
-            var source = settings.MasterVolumeSlider.Slider;
-            var text = settings.GetComponentInChildren<TextMeshProUGUI>(true);
-            if (text == null || source == null) throw new InvalidOperationException("Native settings controls are not ready.");
+            Slider source = settings != null && settings.MasterVolumeSlider != null ? settings.MasterVolumeSlider.Slider : null;
+            if (source == null)
+                foreach (var option in Resources.FindObjectsOfTypeAll<OptionSlider>())
+                    if (option.Slider != null) { source = option.Slider; break; }
+            _nativeSliders = source != null;
+            TextMeshProUGUI text = settings != null ? settings.GetComponentInChildren<TextMeshProUGUI>(true) : null;
+            if (text == null)
+                foreach (var candidate in Resources.FindObjectsOfTypeAll<TextMeshProUGUI>())
+                    if (candidate.font != null) { text = candidate; break; }
+            if (text == null) throw new InvalidOperationException("Waiting for the game's UI font to load.");
             _font = text.font;
             _fontMaterial = text.fontSharedMaterial;
-            var image = source.GetComponentInChildren<Image>(true);
+            var image = source != null ? source.GetComponentInChildren<Image>(true) : null;
             _buttonSprite = image != null ? image.sprite : null;
 
             _root = new GameObject("UltrawideModMenu");
+            UnityEngine.Object.DontDestroyOnLoad(_root);
             var canvas = _root.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvas.sortingOrder = 30000;
@@ -101,10 +164,9 @@ namespace DiceVadersUltrawide
             scaler.matchWidthOrHeight = 1f;
             _root.AddComponent<GraphicRaycaster>();
 
-            Button(_root.transform, "ULTRAWIDE MOD", new Vector2(0, -470), new Vector2(360, 66), () =>
+            _entry = Button(_root.transform, "ULTRAWIDE MOD", new Vector2(0, -470), new Vector2(360, 66), () =>
             {
-                _panel.SetActive(true);
-                Sync();
+                SetOpen(true);
             });
             // A fixed lower-center entry avoids changing native menu navigation.
             _panel = new GameObject("UltrawideSettings");
@@ -142,15 +204,16 @@ namespace DiceVadersUltrawide
                 HudSizing._boardScale.Value = HudSizing.DefaultScale;
                 Sync();
             });
-            Button(frame.transform, "CLOSE", new Vector2(200, -200), new Vector2(300, 70), () => _panel.SetActive(false));
+            Button(frame.transform, "CLOSE", new Vector2(200, -200), new Vector2(300, 70), () => SetOpen(false));
             Label(frame.transform, "Changes save automatically   /   F10 opens this panel", new Vector2(0, -280), new Vector2(850, 45), 22);
             Sync();
             _panel.SetActive(false);
-            Plugin.Instance.Log.LogInfo("Native-styled mod menu added to Settings. F10 opens it while Settings is visible.");
+            Plugin.Instance.Log.LogInfo("Mod menu ready. F10 opens it anywhere; Settings also has an Ultrawide Mod entry.");
         }
 
         Slider MakeSlider(Slider source, Transform parent, Vector2 position, Action<float> changed)
         {
+            if (source == null) return MakeFallbackSlider(parent, position, changed);
             // Clone under an inactive parent, so inherited scripts never run enabled.
             var staging = new GameObject("SliderStaging");
             staging.SetActive(false);
@@ -171,6 +234,28 @@ namespace DiceVadersUltrawide
             Rect(clone, parent, new Vector2(620, 50), position);
             UnityEngine.Object.Destroy(staging);
             clone.SetActive(true);
+            return slider;
+        }
+
+        Slider MakeFallbackSlider(Transform parent, Vector2 position, Action<float> changed)
+        {
+            var obj = new GameObject("SizeSlider");
+            Rect(obj, parent, new Vector2(620, 50), position);
+            var track = new GameObject("Track");
+            Rect(track, obj.transform, new Vector2(600, 14), Vector2.zero);
+            var trackImage = track.AddComponent<Image>();
+            trackImage.color = new Color(0.08f, 0.18f, 0.22f, 1f);
+            var handle = new GameObject("Handle");
+            var handleRect = Rect(handle, track.transform, new Vector2(28, 42), Vector2.zero);
+            var handleImage = handle.AddComponent<Image>();
+            handleImage.color = new Color(0.35f, 0.9f, 0.65f, 1f);
+            var slider = obj.AddComponent<Slider>();
+            slider.targetGraphic = handleImage;
+            slider.handleRect = handleRect;
+            slider.minValue = 100;
+            slider.maxValue = 135;
+            slider.wholeNumbers = true;
+            slider.onValueChanged.AddListener((UnityAction<float>)(value => changed(value)));
             return slider;
         }
 
