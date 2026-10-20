@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.13 - 2026-10-20
+
+- Apply encounter enlargement during mouse hover, click, release, and cancel handling, so hit testing uses the same board/HUD transforms as rendering.
+- Restore temporary input transforms even when input handling throws, and avoid applying enlargement twice during nested input calls.
+- Release build passes with zero warnings/errors. Live pointer checks passed at 3440x1440 on outer edges at 123% and 135%, plus center and top tiles at 135%. Full combat actions remain unverified.
+
 ## 0.6.12 - 2026-10-19
 
 - Sharpen pause text by rasterizing at higher resolution without changing its visible size.
@@ -207,3 +213,4 @@
 - Add source documentation and a plugin-only release package.
 
 Build verified; this revision has not yet been tested in game. Tutorial alignment and bottom-panel clipping are not claimed fixed.
+

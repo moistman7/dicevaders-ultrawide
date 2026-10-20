@@ -65,6 +65,8 @@ Output: `bin/Release/net6.0/DiceVadersUltrawide.dll`. Building does not install 
 
 ## Validation and limitations
 
+Version 0.6.13 fixes encounter pointer sizing: mouse hover/click/release/cancel handling temporarily uses the same enlargement and screen-edge positioning as rendering. Nested input calls do not multiply the scale again, and temporary transforms are restored on exit. Release build passes. Live checks at 3440x1440 confirmed correct pointer highlights/tooltips on enlarged outer edges at 123% and 135%, plus center and top tiles at 135%. Full combat actions remain unverified.
+
 Version 0.6.12 includes the approved Settings/Pause panels, sharper pause text, a more visible blue Options entry with a cyan border, and a centred language selector with full-screen dimming. Main-menu icon spacing stays at the game's default.
 
 The menus use protected copies of the game's contextual fonts, with Arial as a fallback. Settings and Pause opening hooks prepare their entries immediately; Options exit hooks hide the entry during transitions. Button hit targets use standard Unity Images, while angled artwork is rendered as geometry.
@@ -80,3 +82,4 @@ Developer checks use process environment variables: `DICEVADERS_UW_MENU_TEST=1` 
 Mod author and maintainer: **NorthernDale / moistman7**. This is the author's own repository.
 
 BepInEx, Il2CppInterop, Harmony, and Unity belong to their respective authors. Dependencies are referenced locally; game assets are not redistributed.
+

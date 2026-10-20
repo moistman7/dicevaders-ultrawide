@@ -14,6 +14,7 @@ namespace DiceVadersUltrawide
         internal static ConfigEntry<float> _hudScale;
         internal static ConfigEntry<float> _boardScale;
         internal const float DefaultScale = 1.23f;
+        internal static HudSizing Active;
         float _nextDiscovery;
         readonly List<Transform> _targets = new();
         Transform _board;
@@ -22,6 +23,7 @@ namespace DiceVadersUltrawide
 
         void Start()
         {
+            Active = this;
             _hudScale = Plugin.Instance.Config.Bind("Interface", "HudScale", DefaultScale,
                 new ConfigDescription("Encounter panel size multiplier. F6 decreases and F7 increases both HUD and board size.", new AcceptableValueRange<float>(1f, 1.35f)));
             _boardScale = Plugin.Instance.Config.Bind("Interface", "BoardScale", DefaultScale,
@@ -39,7 +41,25 @@ namespace DiceVadersUltrawide
             _applied.Clear();
         }
 
-        void OnDestroy() => Restore();
+        void OnDestroy()
+        {
+            Restore();
+            if (Active == this) Active = null;
+        }
+
+        // Input may run before or after our Update. Use the same transforms as
+        // rendering, and only undo changes owned by this particular input call.
+        internal bool BeginPointerInput()
+        {
+            if (_applied.Count != 0) return false;
+            ApplySizing();
+            return _applied.Count != 0;
+        }
+
+        internal void EndPointerInput(bool applied)
+        {
+            if (applied) Restore();
+        }
 
         void Update()
         {
@@ -77,8 +97,11 @@ namespace DiceVadersUltrawide
             _targets.Add(target);
         }
 
-        void LateUpdate()
+        void LateUpdate() => ApplySizing();
+
+        void ApplySizing()
         {
+            if (_applied.Count != 0) return;
             if (_hudScale == null || !Plugin.Enabled.Value || Screen.height <= 0 ||
                 (float)Screen.width / Screen.height <= 16f / 9f + 0.01f) return;
             foreach (var target in _targets)

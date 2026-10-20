@@ -13,7 +13,7 @@ using HarmonyLib;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.6.12")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.6.13")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;
@@ -49,6 +49,7 @@ namespace DiceVadersUltrawide
             ClassInjector.RegisterTypeInIl2Cpp<UwBehaviour>();
             AddComponent<UwBehaviour>();
             AddComponent<HudSizing>();
+            new Harmony("local.dicevaders.ultrawide.pointer").PatchAll(typeof(PointerSizing));
             AddComponent<MainMenuLayout>();
             ClassInjector.RegisterTypeInIl2Cpp<MenuGraphic>();
             AddComponent<ModMenu>();
