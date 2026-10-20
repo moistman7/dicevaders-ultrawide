@@ -58,6 +58,13 @@ namespace DiceVadersUltrawide
         }
         GameObject _root;
         GameObject _panel;
+        RectTransform _close;
+        bool _closePressed, _closedWithMouseDown;
+        // Set when the menu opens on a mouse press: the panel takes no mouse
+        // input until that press is released, so its release cannot click
+        // whatever button opened under the cursor (often CLOSE).
+        bool _awaitingRelease;
+        float _closedTime = -10f;
         SettingsSceneController _settings;
         SettingsSceneController _closingSettings;
 
@@ -76,6 +83,8 @@ namespace DiceVadersUltrawide
         Text _hudLabel;
         Text _boardLabel;
         Text _enabledLabel;
+        Text _hudLayoutLabel;
+        bool? _syncedCenterHud;
         float _nextSearch;
         bool _syncing;
 
@@ -106,13 +115,16 @@ namespace DiceVadersUltrawide
 
 
 
-        void Update()
+        void Update() { long started = Profile.Start(); try { UpdateCore(); } finally { Profile.Stop(started, Profile.Hook.Menu); } }
+        void UpdateCore()
         {
             int scene = SceneManager.GetActiveScene().handle;
             if (_scene != scene)
             {
                 if (_panel != null && _panel.activeSelf) SetOpen(false);
                 _scene = scene;
+                _settings = null;
+                _pause = null;
                 _nextSearch = 0f;
             }
             var keyboard = Keyboard.current;
@@ -122,14 +134,16 @@ namespace DiceVadersUltrawide
             {
                 _nextSearch = Time.unscaledTime + 1f;
                 _fonts.CaptureAvailable();
-                _settings = null;
-                _pause = null;
+                // OnPause/OnEnable hooks report the live screens; scan only when
+                // nothing is known yet (startup or after a scene change).
+                if (_pause == null)
                 foreach (var pause in UnityEngine.Object.FindObjectsByType<PauseMenuController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 {
                     if (!pause.gameObject.scene.IsValid()) continue;
                     if (pause.IsPaused) { _pause = pause; break; }
                     if (_pause == null) _pause = pause;
                 }
+                if (_settings == null)
                 foreach (var settings in UnityEngine.Object.FindObjectsByType<SettingsSceneController>(FindObjectsInactive.Include, FindObjectsSortMode.None))
                 {
                     if (!settings.gameObject.scene.IsValid()) continue;
@@ -158,13 +172,15 @@ namespace DiceVadersUltrawide
             if (_panel.activeSelf && !inSettings && _pauseFont != null && _hudLabel.font != _pauseFont) ApplyPanelFonts();
 
             var mouse = Mouse.current;
+            // A mouse held through the close no longer blocks once it is released.
+            if (_closedWithMouseDown && (mouse == null || !mouse.leftButton.isPressed)) _closedWithMouseDown = false;
             if (!_panel.activeSelf && _entry.activeSelf && mouse != null && mouse.leftButton.wasPressedThisFrame &&
                 RectTransformUtility.RectangleContainsScreenPoint(_entry.GetComponent<RectTransform>(), mouse.position.ReadValue(), null))
-                OpenFromEntry();
+                OpenFromEntry("entry press");
             if (toggle)
             {
-                if (_panel.activeSelf) SetOpen(false);
-                else OpenFromEntry();
+                if (_panel.activeSelf) SetOpen(false, "hotkey");
+                else OpenFromEntry("hotkey");
             }
             if (_panel.activeSelf)
             {
@@ -190,7 +206,24 @@ namespace DiceVadersUltrawide
                     _captureStarted = true;
                     StartCoroutine(CaptureAfterRender(capture).WrapToIl2Cpp());
                 }
-                if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetOpen(false);
+                if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) SetOpen(false, "escape");
+                // The UI module can miss a click on the frame its input is enabled.
+                // Closing is idempotent, so also read the mouse directly.
+                if (_awaitingRelease)
+                {
+                    // Enable UI input the frame after the opening press is released.
+                    if (mouse == null || (!mouse.leftButton.isPressed && !mouse.leftButton.wasReleasedThisFrame))
+                    {
+                        _awaitingRelease = false;
+                        _eventRoot.SetActive(true);
+                    }
+                }
+                else if (mouse != null && _close != null)
+                {
+                    bool over = RectTransformUtility.RectangleContainsScreenPoint(_close, mouse.position.ReadValue(), null);
+                    if (mouse.leftButton.wasPressedThisFrame) _closePressed = over;
+                    if (mouse.leftButton.wasReleasedThisFrame && _closePressed && over) SetOpen(false, "close mouse");
+                }
                 if (smoke && _smokeOpened && Time.unscaledTime >= _smokeCloseAt)
                 {
                     SetOpen(false);
@@ -231,28 +264,34 @@ namespace DiceVadersUltrawide
         void TestButtons()
         {
             bool enabled = Plugin.Enabled.Value;
+            bool centered = HudSizing._centerHud.Value;
             float hud = HudSizing._hudScale.Value, board = HudSizing._boardScale.Value;
             try
             {
                 ClickTestButton("EnableFix");
                 if (Plugin.Enabled.Value == enabled) throw new InvalidOperationException("Toggle button callback did not run.");
+                ClickTestButton("HUD FRAME");
+                if (HudSizing._centerHud.Value == centered) throw new InvalidOperationException("HUD frame toggle callback did not run.");
+                ClickTestButton("HUD FRAME");
+                if (HudSizing._centerHud.Value != centered) throw new InvalidOperationException("HUD frame toggle did not restore.");
                 HudSizing._hudScale.Value = 1.01f;
                 HudSizing._boardScale.Value = 1.02f;
-                ClickTestButton("RESET TO 123%");
+                ClickTestButton("RESET TO 100%");
                 if (Math.Abs(HudSizing._hudScale.Value - HudSizing.DefaultScale) > 0.001f ||
                     Math.Abs(HudSizing._boardScale.Value - HudSizing.DefaultScale) > 0.001f)
                     throw new InvalidOperationException("Reset button callback did not run.");
                 ClickTestButton("CLOSE");
                 if (_panel.activeSelf) throw new InvalidOperationException("Close button callback did not run.");
-                Plugin.Instance.Log.LogInfo("BUTTON TEST PASS: Toggle, Reset, Close are the top raycast targets and their native pointer-click callbacks work.");
+                Plugin.Instance.Log.LogInfo("BUTTON TEST PASS: Toggle, HUD frame, Reset, Close are the top raycast targets and their native pointer-click callbacks work.");
             }
             catch (Exception error) { Plugin.Instance.Log.LogError("BUTTON TEST FAIL: " + error); }
             finally
             {
+                HudSizing._centerHud.Value = centered;
                 Plugin.Enabled.Value = enabled;
                 HudSizing._hudScale.Value = hud;
                 HudSizing._boardScale.Value = board;
-                if (_panel.activeSelf) SetOpen(false);
+                if (_panel.activeSelf) SetOpen(false, "test");
                 _smokeCloseAt = float.PositiveInfinity;
             }
         }
@@ -294,8 +333,19 @@ namespace DiceVadersUltrawide
             catch (Exception error) { Plugin.Instance.Log.LogWarning("Menu capture unavailable: " + error.Message); }
         }
 
-        void OpenFromEntry()
+        // A click that closes the panel can also land on the entry beneath it.
+        // Ignore entry opens until the mouse is released after a close.
+        void OpenFromEntry(string source)
         {
+            var mouse = Mouse.current;
+            // The stray click arrives within a frame or two of the close.
+            if (source != "hotkey" && (Time.unscaledTime - _closedTime < .2f || (_closedWithMouseDown && mouse != null && mouse.leftButton.isPressed)))
+            {
+                Plugin.Instance.Log.LogInfo($"Menu reopen ignored ({source}) right after close.");
+                return;
+            }
+            _closedWithMouseDown = false;
+            Plugin.Instance.Log.LogInfo($"Menu open requested ({source}).");
             SetOpen(true);
         }
 
@@ -449,9 +499,17 @@ namespace DiceVadersUltrawide
                 foreach (var label in _root.GetComponentsInChildren<Text>(true)) label.font = _labelFont;
         }
 
-        void SetOpen(bool open)
+        void SetOpen(bool open, string reason = "other")
         {
             if (_panel == null || _panel.activeSelf == open) return;
+            _closePressed = false;
+            _awaitingRelease = false;
+            if (!open)
+            {
+                _closedTime = Time.unscaledTime;
+                _closedWithMouseDown = Mouse.current != null && Mouse.current.leftButton.isPressed;
+                Plugin.Instance.Log.LogInfo($"Menu closed ({reason}).");
+            }
             if (open)
             {
                 EnsureFont();
@@ -474,7 +532,8 @@ namespace DiceVadersUltrawide
                 _suspendedEvents.Clear();
                 foreach (var events in UnityEngine.Object.FindObjectsByType<EventSystem>(FindObjectsSortMode.None))
                     if (events.enabled) { events.enabled = false; _suspendedEvents.Add(events); }
-                _eventRoot.SetActive(true);
+                _awaitingRelease = Mouse.current != null && Mouse.current.leftButton.isPressed;
+                _eventRoot.SetActive(!_awaitingRelease);
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
                 Sync();
@@ -525,6 +584,7 @@ namespace DiceVadersUltrawide
         {
             _syncedHud = _syncedBoard = float.NaN;
             _syncedEnabled = null;
+            _syncedCenterHud = null;
             _entryLabel = null;
             _entrySettings = null;
             EnsureFont();
@@ -548,7 +608,7 @@ namespace DiceVadersUltrawide
 
             _entry = Button(_root.transform, "ULTRAWIDE MOD", new Vector2(0, -470), new Vector2(360, 66), () =>
             {
-                OpenFromEntry();
+                OpenFromEntry("entry click");
             });
             _entryArtwork = _entry.transform.Find("Artwork").GetComponent<MenuGraphic>();
             _entryBorder = new GameObject("OptionsButtonBorder");
@@ -569,9 +629,9 @@ namespace DiceVadersUltrawide
             dim.color = new Color(0.015f, 0.025f, 0.05f, 0.96f);
             dim.raycastTarget = true;
             var frame = new GameObject("Panel");
-            Rect(frame, _panel.transform, new Vector2(900, 670), Vector2.zero);
+            Rect(frame, _panel.transform, new Vector2(900, 800), Vector2.zero);
             var background = AddGraphic(frame);
-            background.Bottom = 0.23f;
+            background.Bottom = 0.04f;
             background.Top = 0.82f;
             background.Slant = 20f;
             background.color = new Color(0.075f, 0.18f, 0.21f, 1f);
@@ -591,14 +651,20 @@ namespace DiceVadersUltrawide
             {
                 if (!_syncing) HudSizing._boardScale.Value = Mathf.Round(value) / 100f;
             });
-            Button(frame.transform, "RESET TO 123%", new Vector2(-190, -200), new Vector2(340, 70), () =>
+            var hudLayout = Button(frame.transform, "HUD FRAME", new Vector2(0, -175), new Vector2(620, 65), () =>
+            {
+                HudSizing._centerHud.Value = !HudSizing._centerHud.Value;
+                Sync();
+            });
+            _hudLayoutLabel = hudLayout.GetComponentInChildren<Text>();
+            Button(frame.transform, "RESET TO 100%", new Vector2(-190, -250), new Vector2(340, 70), () =>
             {
                 HudSizing._hudScale.Value = HudSizing.DefaultScale;
                 HudSizing._boardScale.Value = HudSizing.DefaultScale;
                 Sync();
             });
-            Button(frame.transform, "CLOSE", new Vector2(200, -200), new Vector2(300, 70), () => SetOpen(false));
-            Label(frame.transform, $"Changes save automatically   /   Menu key: {Hotkeys.Menu.Value}", new Vector2(0, -280), new Vector2(850, 45), 22);
+            _close = Button(frame.transform, "CLOSE", new Vector2(200, -250), new Vector2(300, 70), () => SetOpen(false, "close button")).GetComponent<RectTransform>();
+            Label(frame.transform, $"Changes save automatically   /   Menu key: {Hotkeys.Menu.Value}", new Vector2(0, -330), new Vector2(850, 45), 22);
             Sync();
             _panel.SetActive(false);
             Plugin.Instance.Log.LogInfo($"Mod menu ready. {Hotkeys.Menu.Value} opens it anywhere; Settings and Pause also have an Ultrawide Mod entry.");
@@ -709,13 +775,16 @@ namespace DiceVadersUltrawide
         {
             float hud = HudSizing._hudScale.Value, board = HudSizing._boardScale.Value;
             bool enabled = Plugin.Enabled.Value;
-            if (_syncedHud == hud && _syncedBoard == board && _syncedEnabled == enabled) return;
+            bool centered = HudSizing._centerHud.Value;
+            if (_syncedHud == hud && _syncedBoard == board && _syncedEnabled == enabled && _syncedCenterHud == centered) return;
             _syncing = true;
             _hud.SetValueWithoutNotify(HudSizing._hudScale.Value * 100);
             _board.SetValueWithoutNotify(HudSizing._boardScale.Value * 100);
             _hudLabel.text = $"HUD SIZE   {HudSizing._hudScale.Value:P0}";
             _boardLabel.text = $"BOARD SIZE   {HudSizing._boardScale.Value:P0}";
             _enabledLabel.text = "ULTRAWIDE FIX: " + (Plugin.Enabled.Value ? "ON" : "OFF");
+            _hudLayoutLabel.text = centered ? "HUD FRAME: CENTERED 16:9" : "HUD FRAME: FULL WIDTH";
+            _syncedCenterHud = centered;
             _syncedHud = hud;
             _syncedBoard = board;
             _syncedEnabled = enabled;

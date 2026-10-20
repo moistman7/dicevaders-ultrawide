@@ -13,7 +13,7 @@ using HarmonyLib;
 
 namespace DiceVadersUltrawide
 {
-    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.6.13")]
+    [BepInPlugin("local.dicevaders.ultrawide", "DiceVaders Ultrawide", "0.6.14")]
     public class Plugin : BasePlugin
     {
         internal static Plugin Instance;
@@ -79,7 +79,8 @@ namespace DiceVadersUltrawide
             Original.Clear();
         }
 
-        void Update()
+        void Update() { long started = Profile.Start(); try { UpdateCore(); } finally { Profile.Stop(started, Profile.Hook.Scaler); } }
+        void UpdateCore()
         {
             try
             {
@@ -98,7 +99,7 @@ namespace DiceVadersUltrawide
                 ForceRes();
 
                 if (Time.unscaledTime < _next) return;
-                _next = Time.unscaledTime + 0.25f;
+                _next = Time.unscaledTime + 1f;
                 Apply();
             }
             catch (Exception e)

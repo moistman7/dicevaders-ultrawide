@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.6.14 - 2026-10-20
+
+- Default HUD and board size is now 100% (Reset to 100%). Existing saved sizes are kept.
+- Add a saved HUD FRAME toggle for full-width or centered 16:9 encounter HUD placement, independent of board size.
+- Centered mode moves each side panel through its own invisible holder, so the game's panel animations can no longer capture the offset. Fixes full width not reaching the screen edges and lower controls drifting wider than the side panels.
+- Include pause/map HUD placement and support centering at 100% HUD scale.
+- Keep mouse targeting aligned with the repositioned HUD.
+- Keep sizing applied between frames instead of undoing and reapplying it every frame. Mod CPU time in encounters dropped from about 2.6-3.2 ms to about 0.3 ms per frame (3440x1440, centered, 123%); idle frames no longer force the encounter canvases to rebuild.
+- Mod menu: the click that opens the menu no longer lands on the button under the cursor (often CLOSE), and CLOSE has a direct mouse fallback.
+- Fewer scene searches while playing (main menu, CanvasScaler, pause/settings lookups).
+
 ## 0.6.13 - 2026-10-20
 
 - Apply encounter enlargement during mouse hover, click, release, and cancel handling, so hit testing uses the same board/HUD transforms as rendering.

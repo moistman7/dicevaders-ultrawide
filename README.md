@@ -2,7 +2,7 @@
 
 Created and maintained by **NorthernDale** (**moistman7** on GitHub). This is my source repository for [my Nexus Mods release](https://www.nexusmods.com/dicevaders/mods/1).
 
-A BepInEx 6 IL2CPP plugin for height-based ultrawide canvas scaling, adjustable encounter HUD/board sizes, and optional startup resolution selection. HUD and board default to **123%**.
+A BepInEx 6 IL2CPP plugin for height-based ultrawide canvas scaling, adjustable encounter HUD/board sizes, and optional startup resolution selection. HUD and board default to **100%**.
 
 ## Install
 
@@ -16,7 +16,7 @@ A BepInEx 6 IL2CPP plugin for height-based ultrawide canvas scaling, adjustable 
 
 **F10** opens the mod panel directly from gameplay, Pause, or Settings. Settings and Pause also have an **ULTRAWIDE MOD** entry. Opening from Pause does **not** open the game's Options screen. Closing returns to the screen underneath.
 
-The panel has separate HUD and board sliders (100-135%), an enable button, Reset to 123%, and Close. Escape closes it. Changes save immediately. The overlay saves/restores the Unity clock, cursor, enabled game input handlers, and EventSystems. Real-time game coroutines may continue; full pause behavior and controller navigation still need testing.
+The panel has separate HUD and board sliders (100-135%), an enable button, Reset to 100%, and Close. Escape closes it. Changes save immediately. The overlay saves/restores the Unity clock, cursor, enabled game input handlers, and EventSystems. Real-time game coroutines may continue; full pause behavior and controller navigation still need testing.
 
 | Default key | Action |
 | --- | --- |
@@ -41,6 +41,8 @@ Use Input System key names such as F12, PageUp, PageDown, Home, or End. `None` d
 
 ## Configuration
 
+The mod panel's **HUD FRAME** button toggles between **FULL WIDTH** and **CENTERED 16:9**. Centered mode brings encounter HUD panels into a height-based 16:9 area while keeping the game ultrawide and board size independent. It works at 100% HUD size too. The setting saves as `Interface/CenterHud16By9` (default false); Reset to 100% changes sizes only.
+
 Edit the config with the game closed.
 
 - `General/Enabled`: enable the fix (default true).
@@ -64,6 +66,8 @@ dotnet build -c Release -p:GameDir="D:/SteamLibrary/steamapps/common/DiceVaders"
 Output: `bin/Release/net6.0/DiceVadersUltrawide.dll`. Building does not install it.
 
 ## Validation and limitations
+
+Version 0.6.14 adds the centered 16:9 HUD frame, 100% default sizes, persistent sizing, and mod menu click fixes. Set `DICEVADERS_UW_PROFILE=1` to log frame timing every 10 seconds. Opt-in runtime checks at 3440x1440 pass at 100%, 123% and 135% HUD size: board unchanged by the frame, repeated sizing stable, simulated panel animation never overwritten, and full width restored exactly. Measured mod CPU time dropped from 2.6-3.2 ms to about 0.3 ms per frame. Centered and full-width layouts were checked visually in an encounter; full combat actions remain unverified.
 
 Version 0.6.13 fixes encounter pointer sizing: mouse hover/click/release/cancel handling temporarily uses the same enlargement and screen-edge positioning as rendering. Nested input calls do not multiply the scale again, and temporary transforms are restored on exit. Release build passes. Live checks at 3440x1440 confirmed correct pointer highlights/tooltips on enlarged outer edges at 123% and 135%, plus center and top tiles at 135%. Full combat actions remain unverified.
 
